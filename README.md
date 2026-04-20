@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Insurance Policy Administration System (PAS) - QA Automation
 
 Complete QA automation test suite for Insurance PAS Spring Boot application.
@@ -309,3 +310,6 @@ Internal use for Insurance PAS testing
 **Last Updated**: April 2026  
 **Collection Version**: 1.0  
 **API Target**: Insurance PAS v1.0
+=======
+# insurance-qa
+>>>>>>> b230d62665a6fc4d1520b9c4f28e0cda0ba20ab7
