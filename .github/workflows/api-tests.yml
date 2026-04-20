@@ -1,171 +1,37 @@
-name: Insurance PAS QA Automation Tests
+name: API Automation Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
-  schedule:
-    - cron: '0 2 * * *'  # Run daily at 2 AM UTC
 
 jobs:
-  api-tests:
+  run-api-tests:
     runs-on: ubuntu-latest
-    
-    timeout-minutes: 30
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
+
     steps:
-      # Step 1: Checkout code
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      # Step 2: Setup Node.js
-      - name: Setup Node.js ${{ matrix.node-version }}
+
+      - name: Setup Node (No Cache)
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      
-      # Step 3: Install dependencies
-      - name: Install Newman and dependencies
-        run: |
-          npm install -g newman
-          npm install -g newman-reporter-html
-          npm install -g newman-reporter-htmlextra
-        shell: bash
-      
-      # Step 4: Verify installation
-      - name: Verify Newman installation
-        run: |
-          newman --version
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-        shell: bash
-      
-      # Step 5: Create reports directory
-      - name: Create reports directory
-        run: mkdir -p reports
-        shell: bash
-      
-      # Step 6: Run API tests
-      - name: Run Insurance QA API Tests
-        run: |
-          echo "Starting API test execution..."
-          newman run collections/insurance-enterprise.json \
-            --environment collections/insurance-env.json \
-            --reporters cli,html,json \
-            --reporter-html-export reports/insurance-qa-report.html \
-            --reporter-json-export reports/insurance-qa-report.json \
-            --bail \
-            --verbose \
-            --insecure \
-            --timeout-request 30000 \
-            --timeout 60000 \
-            --color on
-        continue-on-error: true
-        shell: bash
-      
-      # Step 7: Generate test summary from JSON report
-      - name: Generate test summary
-        if: always()
-        run: |
-          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f reports/insurance-qa-report.json ]; then
-            TOTAL=$(jq '.run.stats.tests.total // 0' reports/insurance-qa-report.json)
-            PASSED=$(jq '.run.stats.tests.passed // 0' reports/insurance-qa-report.json)
-            FAILED=$(jq '.run.stats.tests.failed // 0' reports/insurance-qa-report.json)
-            echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $PASSED ✓" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $FAILED ✗" >> $GITHUB_STEP_SUMMARY
-          fi
-        shell: bash
-      
-      # Step 8: Upload HTML report as artifact
-      - name: Upload HTML Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: insurance-qa-report-${{ matrix.node-version }}
-          path: reports/insurance-qa-report.html
-          retention-days: 30
-      
-      # Step 9: Upload JSON report as artifact
-      - name: Upload JSON Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: insurance-qa-json-${{ matrix.node-version }}
-          path: reports/insurance-qa-report.json
-          retention-days: 30
-      
-      # Step 10: Comment on PR with test results
-      - name: Comment PR with test results
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('reports/insurance-qa-report.json', 'utf8'));
-            const stats = report.run.stats;
-            
-            const total = stats.tests.total || 0;
-            const passed = stats.tests.passed || 0;
-            const failed = stats.tests.failed || 0;
-            
-            let comment = `## 🧪 Insurance QA Automation Test Results\n\n`;
-            comment += `| Metric | Count |\n`;
-            comment += `|--------|-------|\n`;
-            comment += `| Total Tests | ${total} |\n`;
-            comment += `| Passed ✓ | ${passed} |\n`;
-            comment += `| Failed ✗ | ${failed} |\n`;
-            comment += `| Success Rate | ${total > 0 ? ((passed/total)*100).toFixed(2) : 0}% |\n\n`;
-            
-            if (failed > 0) {
-              comment += `⚠️ **Test failures detected** - Please review the [detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-            } else if (total > 0) {
-              comment += `✅ **All tests passed!**`;
-            }
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-      
-      # Step 11: Fail job if tests failed
-      - name: Check test results
-        if: failure()
-        run: |
-          echo "❌ API tests failed!"
-          exit 1
-        shell: bash
-      
-      # Step 12: Success notification
-      - name: Test success notification
-        if: success()
-        run: |
-          echo "✅ All API tests passed successfully!"
-        shell: bash
+          node-version: 18
 
-  # Optional: Notify on test completion
-  notify:
-    needs: api-tests
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-      - name: Notification
+      - name: Install Newman
         run: |
-          if [ "${{ needs.api-tests.result }}" == "success" ]; then
-            echo "✅ QA automation tests completed successfully"
-          else
-            echo "❌ QA automation tests failed"
-          fi
+          npm install -g newman newman-reporter-htmlextra
+
+      - name: Run API Tests
+        run: |
+          mkdir -p reports
+          newman run collections/insurance-enterprise-v1-stable.json \
+          -e collections/insurance-env.json \
+          -r cli,htmlextra \
+          --reporter-htmlextra-export reports/report.html
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: reports/report.html
