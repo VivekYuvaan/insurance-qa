@@ -1,0 +1,48 @@
+# Dependencies and node modules
+node_modules/
+npm-debug.log
+package-lock.json
+yarn.lock
+
+# Reports and test outputs
+reports/
+*.html
+*.json
+!collections/*.json
+!data/*.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env
+.env.local
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Test coverage
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Insurance QA specific ignores
+reports/*
+!reports/.gitkeep

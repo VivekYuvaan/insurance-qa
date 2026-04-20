@@ -1,0 +1,11 @@
+clientId,clientName,clientEmail,clientPhone,clientAddress,insuredName,insuredDOB,insuredGender,insuredRelationship,coverCode,coverName,sumInsured,premium,attributeName,attributeValue
+CL001,John Doe,john.doe@example.com,+1-555-0123,123 Main St New York NY 10001,Jane Smith,1985-06-15,FEMALE,SPOUSE,LC,Life Coverage,500000,5000,premium_amount,50000
+CL002,Alice Johnson,alice.johnson@example.com,+1-555-0124,456 Oak St Los Angeles CA 90001,Bob Johnson,1980-03-20,MALE,SELF,LC,Life Coverage,750000,7500,premium_amount,75000
+CL003,Michael Chen,michael.chen@example.com,+1-555-0125,789 Pine St Chicago IL 60601,Sarah Chen,1990-11-05,FEMALE,SPOUSE,LC,Life Coverage,600000,6000,coverage_type,ANNUAL
+CL004,Emma Williams,emma.williams@example.com,+1-555-0126,321 Elm St Houston TX 77001,James Williams,1988-07-12,MALE,SELF,LC,Life Coverage,400000,4000,policy_term,10_YEARS
+CL005,David Martinez,david.martinez@example.com,+1-555-0127,654 Maple St Phoenix AZ 85001,Laura Martinez,1992-09-08,FEMALE,SPOUSE,LC,Life Coverage,550000,5500,premium_amount,55000
+CL006,Sophia Anderson,sophia.anderson@example.com,+1-555-0128,987 Birch St Philadelphia PA 19101,Thomas Anderson,1987-02-14,MALE,SELF,LC,Life Coverage,650000,6500,premium_amount,65000
+CL007,Olivia Taylor,olivia.taylor@example.com,+1-555-0129,159 Cedar St San Antonio TX 78201,Daniel Taylor,1991-04-25,MALE,SPOUSE,LC,Life Coverage,700000,7000,coverage_type,COMPREHENSIVE
+CL008,Ethan Brown,ethan.brown@example.com,+1-555-0130,246 Spruce St San Diego CA 92101,Ava Brown,1986-08-30,FEMALE,SELF,LC,Life Coverage,500000,5000,premium_amount,50000
+CL009,Isabella Davis,isabella.davis@example.com,+1-555-0131,357 Willow St Dallas TX 75201,Mason Davis,1989-01-17,MALE,SPOUSE,LC,Life Coverage,600000,6000,policy_term,20_YEARS
+CL010,Benjamin Miller,benjamin.miller@example.com,+1-555-0132,468 Poplar St San Jose CA 95101,Charlotte Miller,1993-10-09,FEMALE,SELF,LC,Life Coverage,450000,4500,premium_amount,45000

@@ -1,0 +1,36 @@
+{
+  "id": "insurance-env",
+  "name": "insurance-env",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "enabled": true
+    },
+    {
+      "key": "agentId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "quoteId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "insuredId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "coverId",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}
