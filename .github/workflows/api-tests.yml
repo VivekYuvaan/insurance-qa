@@ -1,48 +1,47 @@
 name: API Automation Tests
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
+push:
+branches: [ main ]
+pull_request:
 
 jobs:
-  run-api-tests:
-    runs-on: ubuntu-latest
+run-api-tests:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+  - name: Setup Node
+    uses: actions/setup-node@v4
+    with:
+      node-version: 18
 
-      - name: Install Newman + Reporter
-        run: |
-          npm install -g newman newman-reporter-htmlextra
+  - name: Install Newman
+    run: |
+      npm install -g newman newman-reporter-htmlextra
 
-      - name: Create reports folder
-        run: mkdir -p reports
+  - name: Run API Tests (Setup + Smoke)
+    run: |
+      mkdir -p reports
+      npx newman run collections/insurance-enterprise-v1-stable.json \
+        -e collections/insurance-env.json \
+        --folder "00 - Setup" \
+        --folder "01 - Quote Lifecycle" \
+        -r cli,htmlextra \
+        --reporter-htmlextra-export reports/report.html
 
-      # 🔥 UPDATED STEP (important change here)
-      - name: Run API Tests (with HTML report)
-        run: |
-          npx newman run collections/insurance-enterprise-v1-stable.json \
-          -e collections/insurance-env.json \
-          -r cli,htmlextra \
-          --reporter-htmlextra-export reports/report.html
+  - name: Upload Report
+    uses: actions/upload-artifact@v4
+    with:
+      name: api-test-report
+      path: reports/report.html
 
-      # 🔥 SAME but cleaner naming
-      - name: Upload HTML Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: qa-report
-          path: reports/report.html
-
-      # 🔥 NEW STEP (enterprise touch)
-      - name: Add QA Summary
-        run: |
-          echo "## 🧪 QA Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "✔ Newman tests executed against Render API" >> $GITHUB_STEP_SUMMARY
-          echo "📄 Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
+  - name: QA Summary
+    run: |
+      echo "## 🧪 QA Test Summary" >> $GITHUB_STEP_SUMMARY
+      echo "✔ Setup + Smoke tests executed" >> $GITHUB_STEP_SUMMARY
+      echo "📄 Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
+```
