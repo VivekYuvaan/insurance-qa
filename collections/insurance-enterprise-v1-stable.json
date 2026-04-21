@@ -8,7 +8,7 @@
   },
   "item": [
     {
-      "name": "00-Setup",
+      "name": "00 - Setup",
       "item": [
         {
           "name": "[SETUP] Create Agent",
@@ -165,10 +165,10 @@
       ]
     },
     {
-      "name": "01 - Quote Lifecycle (Happy Path)",
+      "name": "01 - Quote Lifecycle",
       "item": [
         {
-          "name": "[SMOKE] Create Quote",
+          "name": "1.3 [SMOKE] Create Quote",
           "event": [
             {
               "listen": "test",
@@ -688,6 +688,14 @@
                 "status"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
           },
           "response": []
         }
