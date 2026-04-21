@@ -9,7 +9,7 @@ jobs:
 run-api-tests:
 runs-on: ubuntu-latest
 
-```
+
 steps:
   - name: Checkout Code
     uses: actions/checkout@v4
@@ -41,7 +41,7 @@ steps:
 
   - name: QA Summary
     run: |
-      echo "## 🧪 QA Test Summary" >> $GITHUB_STEP_SUMMARY
-      echo "✔ Setup + Smoke tests executed" >> $GITHUB_STEP_SUMMARY
-      echo "📄 Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
-```
+      echo "## QA Test Summary" >> $GITHUB_STEP_SUMMARY
+      echo "Setup + Smoke tests executed successfully" >> $GITHUB_STEP_SUMMARY
+      echo "Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
+
