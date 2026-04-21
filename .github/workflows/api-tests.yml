@@ -1,47 +1,45 @@
 name: API Automation Tests
 
 on:
-push:
-branches: [ main ]
-pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
-run-api-tests:
-runs-on: ubuntu-latest
+  run-api-tests:
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout Code
-    uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-  - name: Setup Node
-    uses: actions/setup-node@v4
-    with:
-      node-version: 18
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra
 
-  - name: Install Newman
-    run: |
-      npm install -g newman newman-reporter-htmlextra
+      - name: Run API Tests (Setup + Smoke)
+        run: |
+          mkdir -p reports
+          npx newman run collections/insurance-enterprise-v1-stable.json \
+            -e collections/insurance-env.json \
+            --folder "00 - Setup" \
+            --folder "01 - Quote Lifecycle" \
+            -r cli,htmlextra \
+            --reporter-htmlextra-export reports/report.html
 
-  - name: Run API Tests (Setup + Smoke)
-    run: |
-      mkdir -p reports
-      npx newman run collections/insurance-enterprise-v1-stable.json \
-        -e collections/insurance-env.json \
-        --folder "00 - Setup" \
-        --folder "01 - Quote Lifecycle" \
-        -r cli,htmlextra \
-        --reporter-htmlextra-export reports/report.html
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-report
+          path: reports/report.html
 
-  - name: Upload Report
-    uses: actions/upload-artifact@v4
-    with:
-      name: api-test-report
-      path: reports/report.html
-
-  - name: QA Summary
-    run: |
-      echo "## QA Test Summary" >> $GITHUB_STEP_SUMMARY
-      echo "Setup + Smoke tests executed successfully" >> $GITHUB_STEP_SUMMARY
-      echo "Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
-
+      - name: QA Summary
+        run: |
+          echo "## QA Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Setup + Smoke tests executed" >> $GITHUB_STEP_SUMMARY
+          echo "Download report from Artifacts section" >> $GITHUB_STEP_SUMMARY
