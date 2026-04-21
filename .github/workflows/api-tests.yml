@@ -13,25 +13,36 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node (No Cache)
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install Newman
+      - name: Install Newman + Reporter
         run: |
           npm install -g newman newman-reporter-htmlextra
 
-      - name: Run API Tests
+      - name: Create reports folder
+        run: mkdir -p reports
+
+      # 🔥 UPDATED STEP (important change here)
+      - name: Run API Tests (with HTML report)
         run: |
-          mkdir -p reports
-          newman run collections/insurance-enterprise-v1-stable.json \
+          npx newman run collections/insurance-enterprise-v1-stable.json \
           -e collections/insurance-env.json \
           -r cli,htmlextra \
           --reporter-htmlextra-export reports/report.html
 
-      - name: Upload Report
+      # 🔥 SAME but cleaner naming
+      - name: Upload HTML Report
         uses: actions/upload-artifact@v4
         with:
-          name: newman-report
+          name: qa-report
           path: reports/report.html
+
+      # 🔥 NEW STEP (enterprise touch)
+      - name: Add QA Summary
+        run: |
+          echo "## 🧪 QA Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✔ Newman tests executed against Render API" >> $GITHUB_STEP_SUMMARY
+          echo "📄 Download HTML report from Artifacts section" >> $GITHUB_STEP_SUMMARY
