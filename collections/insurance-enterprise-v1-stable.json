@@ -11,6 +11,46 @@
       "name": "00 - Setup",
       "item": [
         {
+          "name": "0.0 [HEALTH CHECK] Verify API is Reachable",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Pre-flight check: verify the backend is up before running any tests.",
+                  "// Uses GET /agents (lightweight, always available) as a readiness probe.",
+                  "// If this fails, Newman --bail will abort the entire suite immediately.",
+                  "pm.test(\"API is reachable and responding\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204],",
+                  "        `API unreachable — got HTTP ${pm.response.code}. Check baseUrl: ${pm.request.url.toString()}`",
+                  "    );",
+                  "});",
+                  "",
+                  "// Cold start warning for Render free tier",
+                  "if (pm.response.responseTime > 5000) {",
+                  "    console.warn('⚠️ COLD START DETECTED: Response took', pm.response.responseTime + 'ms.');",
+                  "    console.warn('⚠️ Render free tier spins down after inactivity. Consider running a warm-up request first.');",
+                  "} else {",
+                  "    console.log('✅ API is warm and reachable in', pm.response.responseTime + 'ms → baseUrl:', pm.request.url.toString());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": ["{{baseUrl}}"],
+              "path": ["agents"]
+            },
+            "description": "Pre-flight health check — the very first request in the suite. Calls GET /agents as a lightweight readiness probe. If the API is down, cold-starting, or unreachable, this fails fast and --bail aborts the run immediately, preventing 40+ misleading failures downstream."
+          },
+          "response": []
+        },
+        {
           "name": "[SETUP] Create Agent",
           "event": [
             {

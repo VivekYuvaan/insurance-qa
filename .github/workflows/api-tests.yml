@@ -7,7 +7,8 @@ on:
   pull_request:
 
 jobs:
-  run-api-tests:
+  smoke-tests:
+    name: Smoke Tests (Full Suite)
     runs-on: ubuntu-latest
 
     steps:
@@ -19,27 +20,91 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Newman
+      - name: Install Newman & Reporters
         run: npm install -g newman newman-reporter-htmlextra
 
-      - name: Run API Tests (Setup + Smoke)
+      - name: Create Reports Directory
+        run: mkdir -p reports
+
+      - name: Run Full Test Suite
         run: |
-          mkdir -p reports
           npx newman run collections/insurance-enterprise-v1-stable.json \
             -e collections/insurance-env.json \
             --folder "00 - Setup" \
             --folder "01 - Quote Lifecycle" \
+            --folder "02 - Negative Tests" \
+            --folder "03 - Contract Tests" \
+            --folder "04 - Cover Scenarios" \
+            --folder "05 - Multi-Insured Scenarios" \
+            --folder "06 - Immutability Tests (ISSUED Quote is Locked)" \
             -r cli,htmlextra \
-            --reporter-htmlextra-export reports/report.html
+            --reporter-htmlextra-export reports/smoke-report.html \
+            --bail
 
-      - name: Upload Report
+      - name: Upload Smoke Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-test-report
-          path: reports/report.html
+          name: smoke-test-report
+          path: reports/smoke-report.html
 
       - name: QA Summary
+        if: always()
         run: |
-          echo "## QA Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Setup + Smoke tests executed" >> $GITHUB_STEP_SUMMARY
-          echo "Download report from Artifacts section" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Smoke Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Detail |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Collection** | insurance-enterprise-v1-stable |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | DEV (Render) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Folders Run** | 00-Setup, 01-Lifecycle, 02-Negative, 03-Contract, 04-Cover, 05-MultiInsured, 06-Immutability |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Report** | Download from Artifacts → smoke-test-report |" >> $GITHUB_STEP_SUMMARY
+
+  data-driven-tests:
+    name: Data-Driven Tests (CSV Iterations)
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Newman & Reporters
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Create Reports Directory
+        run: mkdir -p reports
+
+      - name: Run Data-Driven Tests (5 CSV iterations)
+        run: |
+          npx newman run collections/insurance-enterprise-v1-stable.json \
+            -e collections/insurance-env.json \
+            --iteration-data data/test-data.csv \
+            --iteration-count 5 \
+            --folder "00 - Setup" \
+            --folder "01 - Quote Lifecycle" \
+            -r cli,htmlextra \
+            --reporter-htmlextra-export reports/data-driven-report.html \
+            --bail
+
+      - name: Upload Data-Driven Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-driven-test-report
+          path: reports/data-driven-report.html
+
+      - name: Data-Driven Summary
+        if: always()
+        run: |
+          echo "## 📊 Data-Driven Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Detail |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Iterations** | 5 (from test-data.csv) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Folders** | 00-Setup + 01-Quote Lifecycle |" >> $GITHUB_STEP_SUMMARY
+          echo "| **CSV Columns** | clientName, coverCode, sumInsured, premium, attributeName, attributeValue |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Report** | Download from Artifacts → data-driven-test-report |" >> $GITHUB_STEP_SUMMARY
