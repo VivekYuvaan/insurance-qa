@@ -2516,6 +2516,197 @@
       ]
     },
     {
+      "name": "07 - Business Rules",
+      "item": [
+        {
+          "name": "7.1 [BIZ-RULE] Create Quote for WOP+IP Rule Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Quote created in DRAFT\", function () { pm.expect(pm.response.json().status).to.equal('DRAFT'); });",
+                  "pm.environment.set(\"bizRuleQuoteId\", pm.response.json().quoteId);",
+                  "console.log(\"💾 bizRuleQuoteId:\", pm.response.json().quoteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes", "host": ["{{baseUrl}}"], "path": ["quotes"]},
+            "description": "Fresh DRAFT quote for WOP+IP business rule scenario."
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 [BIZ-RULE] Add PRIMARY Insured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set(\"bizRuleInsuredId\", pm.response.json().insuredId);",
+                  "console.log(\"💾 bizRuleInsuredId:\", pm.response.json().insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/insured-persons", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "insured-persons"]},
+            "description": "Adds PRIMARY insured to the business rule test quote."
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 [BIZ-RULE] Add IP Cover (Income Protection — requires WOP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"IP cover created as BASE cover\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverCode).to.equal('IP');",
+                  "    pm.expect(json.coverType).to.equal('BASE');",
+                  "});",
+                  "pm.environment.set(\"bizRuleIPCoverId\", pm.response.json().coverId);",
+                  "console.log(\"💾 bizRuleIPCoverId:\", pm.response.json().coverId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{bizRuleInsuredId}},\n  \"coverCode\": \"IP\",\n  \"coverName\": \"Income Protection\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/covers", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "covers"]},
+            "description": "Adds an IP (Income Protection) BASE cover. Under backend business rules, any quote with an IP cover MUST also have a WOP (Waiver of Premium) RIDER cover — otherwise SUBMIT is rejected."
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 [BIZ-RULE] SUBMIT Without WOP — Expect 400 (Rule Enforced)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// KEY BUSINESS RULE TEST:",
+                  "// Quote has IP cover but no WOP. SUBMIT must be rejected with 400.",
+                  "// Backend CoverValidatorEngine checks: hasIP && !hasWOP → throw InvalidRequestException",
+                  "pm.test(\"Status code is 400 — WOP is mandatory when IP cover present\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message references WOP or mandatory cover requirement\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('wop') || t.includes('waiver') || t.includes('mandatory') ||",
+                  "        t.includes('required') || t.includes('ip') || t.includes('income'),",
+                  "        'Expected error about WOP being mandatory for IP cover'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Business rule enforced: SUBMIT rejected without WOP cover\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"status\": \"SUBMITTED\"\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/status", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "status"]},
+            "description": "Attempts to SUBMIT a quote containing an IP cover but no WOP RIDER. The backend CoverValidatorEngine must enforce: if quote has IP or KPP, a WOP cover is STRICTLY MANDATORY. This must return 400."
+          },
+          "response": []
+        },
+        {
+          "name": "7.5 [BIZ-RULE] Add WOP RIDER (Fix the Violation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"WOP RIDER added with correct parentCoverId\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverCode).to.equal('WOP');",
+                  "    pm.expect(json.coverType).to.equal('RIDER');",
+                  "    pm.expect(json.parentCoverId).to.equal(parseInt(pm.environment.get('bizRuleIPCoverId')));",
+                  "});",
+                  "pm.environment.set(\"bizRuleWOPCoverId\", pm.response.json().coverId);",
+                  "console.log(\"✅ WOP RIDER added — business rule violation fixed\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{bizRuleInsuredId}},\n  \"coverCode\": \"WOP\",\n  \"coverName\": \"Waiver of Premium\",\n  \"coverType\": \"RIDER\",\n  \"parentCoverId\": {{bizRuleIPCoverId}},\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/covers", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "covers"]},
+            "description": "Adds the mandatory WOP (Waiver of Premium) RIDER cover attached to the IP cover. This satisfies the business rule and the subsequent SUBMIT (7.6) should now succeed."
+          },
+          "response": []
+        },
+        {
+          "name": "7.6 [BIZ-RULE] SUBMIT With WOP — Expect 200 (Rule Satisfied)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// After adding WOP, the IP+WOP rule is satisfied.",
+                  "// SUBMIT must now succeed with 200.",
+                  "pm.test(\"Status code is 200 — SUBMIT succeeds with WOP cover present\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote status transitions to SUBMITTED\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('SUBMITTED');",
+                  "    pm.expect(json.quoteId).to.equal(parseInt(pm.environment.get('bizRuleQuoteId')));",
+                  "});",
+                  "",
+                  "console.log(\"✅ Business rule satisfied: SUBMIT succeeded with IP + WOP covers\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"status\": \"SUBMITTED\"\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/status", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "status"]},
+            "description": "Re-attempts SUBMIT after adding the WOP RIDER. Now that IP+WOP are both present, the business rule is satisfied and the transition must succeed with 200 → SUBMITTED."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "_skip_Performance Tests",
       "item": [
         {
@@ -2729,6 +2920,76 @@
           "}"
         ]
       }
+    },
+    {
+      "name": "08 - Security Tests",
+      "item": [
+        {
+          "name": "8.1 [SECURITY] SQL Injection in Agent Name (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"SQL injection does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ SQL injection handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"'; DROP TABLE agents; --\",\n  \"email\": \"sqli@test.com\",\n  \"phoneNumber\": \"+91-9000000001\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: SQL injection in name field. Must not return 500 or execute the payload."},
+          "response": []
+        },
+        {
+          "name": "8.2 [SECURITY] XSS Script Tag in Client Name (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"XSS payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ XSS handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"<script>alert('xss')</script>\",\n  \"lastName\": \"TestUser\",\n  \"email\": \"xss@test.com\",\n  \"phoneNumber\": \"+91-9000000002\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1990-01-01\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Security test: XSS script tag in firstName. Must reject or store as literal text — never execute."},
+          "response": []
+        },
+        {
+          "name": "8.3 [SECURITY] Oversized Payload (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Oversized payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Oversized payload rejected with 400 or 413\", function () { pm.expect([400, 413, 422]).to.include(pm.response.code); });", "console.log(\"✅ Oversized payload handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"email\": \"big@test.com\",\n  \"phoneNumber\": \"+91-9000000003\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: 1000+ char string in name. Must return 400 or 413, never 500."},
+          "response": []
+        },
+        {
+          "name": "8.4 [SECURITY] Wrong Content-Type text/plain → 400 or 415",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Wrong Content-Type rejected without 500\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400, 415, or 422\", function () { pm.expect([400, 415, 422]).to.include(pm.response.code); });", "console.log(\"✅ Wrong Content-Type handled — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "text/plain"}], "body": {"mode": "raw", "raw": "{\"name\": \"Test Agent\", \"email\": \"ct@test.com\", \"role\": \"AGENT\"}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: sends POST with Content-Type: text/plain. Must reject with 415 or 400."},
+          "response": []
+        },
+        {
+          "name": "8.5 [SECURITY] Non-Existent Resource 404 (No Stack Trace Leak)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Non-existent resource returns 404\", function () { pm.response.to.have.status(404); });", "pm.test(\"Error response does not leak stack trace or DB internals\", function () { const text = pm.response.text().toLowerCase(); pm.expect(text).to.not.include('exception'); pm.expect(text).to.not.include('at com.'); pm.expect(text).to.not.include('hibernate'); pm.expect(text).to.not.include('sql'); });", "console.log(\"✅ 404 returned without stack trace leak\");"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/quotes/999999999", "host": ["{{baseUrl}}"], "path": ["quotes", "999999999"]}, "description": "Security test: implausibly large ID. Must return 404 — not 500 — with no stack trace in response body."},
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "99 - Teardown",
+      "item": [
+        {
+          "name": "99.1 [TEARDOWN] DELETE Main Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Main quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "pm.environment.unset('quoteId'); pm.environment.unset('insuredId'); pm.environment.unset('coverId');", "console.log(\"🗑️ Main quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{quoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{quoteId}}"]}, "description": "Deletes the main ISSUED lifecycle quote. Accepts 200/204/404/405."},
+          "response": []
+        },
+        {
+          "name": "99.2 [TEARDOWN] DELETE RIDER Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"RIDER quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ RIDER quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{riderQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{riderQuoteId}}"]}, "description": "Deletes RIDER test quote and clears riderQuoteId, riderInsuredId, riderBaseCoverId, riderCoverId."},
+          "response": []
+        },
+        {
+          "name": "99.3 [TEARDOWN] DELETE Multi-Insured Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Multi-insured quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Multi-insured quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{multiQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{multiQuoteId}}"]}, "description": "Deletes multi-insured test quote and clears all multi-insured env vars."},
+          "response": []
+        },
+        {
+          "name": "99.4 [TEARDOWN] DELETE Business Rules Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Business rules quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Business rules quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}"]}, "description": "Deletes WOP+IP business rule test quote and clears all biz rule env vars."},
+          "response": []
+        },
+        {
+          "name": "99.5 [TEARDOWN] Clear All Dynamic Env Variables",
+          "event": [{"listen": "test", "script": {"exec": ["const dynamicVars = ['agentId','clientId','quoteId','insuredId','coverId','agentEmail','clientEmail','phoneNumber','riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId','multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId','bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'];", "dynamicVars.forEach(v => pm.environment.unset(v));", "pm.test(\"All 20 dynamic env vars cleared\", function () { dynamicVars.forEach(v => { pm.expect(pm.environment.get(v)).to.be.oneOf([null, undefined, '']); }); });", "console.log('✅ TEARDOWN COMPLETE — environment cleaned');", "console.log('   baseUrl:', pm.environment.get('baseUrl'));"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Final teardown: clears all 20 dynamic env vars (IDs, emails, phones) created during the test run. Preserves baseUrl and maxResponseTime."},
+          "response": []
+        }
+      ]
     }
   ]
 }
