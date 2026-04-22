@@ -1,0 +1,45 @@
+{
+  "name": "insurance-pas-qa-automation",
+  "version": "1.0.0",
+  "description": "Comprehensive QA automation test suite for Insurance Policy Administration System",
+  "main": "index.js",
+  "scripts": {
+    "test": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-env.json --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-qa-report.html --reporter-json-export reports/insurance-qa-report.json --bail --verbose",
+    "test:dev": "npm test",
+    "test:local": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-local-env.json --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-qa-report.html --reporter-json-export reports/insurance-qa-report.json --bail --verbose",
+    "test:local:quick": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-local-env.json --reporters cli --bail",
+    "test:verbose": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-env.json --reporters cli,htmlextra --reporter-htmlextra-export reports/insurance-qa-report.html --bail --verbose --color on",
+    "test:quick": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-env.json --reporters cli --bail",
+    "test:ci": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-env.json --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-qa-report.html --reporter-json-export reports/insurance-qa-report.json --bail",
+    "install-reporters": "npm install -g newman-reporter-html newman-reporter-htmlextra",
+    "setup": "npm install -g newman && npm run install-reporters",
+    "clean-reports": "rm -rf reports/*.html reports/*.json"
+  },
+  "keywords": [
+    "insurance",
+    "qa",
+    "automation",
+    "postman",
+    "newman",
+    "api-testing",
+    "spring-boot"
+  ],
+  "author": "QA Team",
+  "license": "Internal",
+  "devDependencies": {
+    "newman": "^6.1.0",
+    "newman-reporter-html": "^1.0.5",
+    "newman-reporter-htmlextra": "^1.22.11"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/insurance-qa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/insurance-qa/issues"
+  }
+}

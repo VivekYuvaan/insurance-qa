@@ -1,0 +1,66 @@
+{
+  "id": "insurance-env-local",
+  "name": "LOCAL - localhost:8080",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "enabled": true,
+      "description": "Local Spring Boot instance. Start with: mvn spring-boot:run or from IDE"
+    },
+    {
+      "key": "maxResponseTime",
+      "value": "3000",
+      "enabled": true,
+      "description": "Local API should respond well under 3 seconds. Tighten if needed."
+    },
+    {
+      "key": "agentId",
+      "value": "",
+      "enabled": true,
+      "description": "Populated automatically by [SETUP] Create Agent test"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "enabled": true,
+      "description": "Populated automatically by [SETUP] Create Client test"
+    },
+    {
+      "key": "quoteId",
+      "value": "",
+      "enabled": true,
+      "description": "Populated automatically by 1.3 Create Quote test"
+    },
+    {
+      "key": "insuredId",
+      "value": "",
+      "enabled": true,
+      "description": "Populated automatically by 1.4 Add Insured Person test"
+    },
+    {
+      "key": "coverId",
+      "value": "",
+      "enabled": true,
+      "description": "Populated automatically by 1.5 Create Cover test"
+    },
+    {
+      "key": "agentEmail",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
+    },
+    {
+      "key": "clientEmail",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
+    },
+    {
+      "key": "phoneNumber",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
+    }
+  ]
+}

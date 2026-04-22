@@ -1,6 +1,6 @@
 {
-  "id": "insurance-env",
-  "name": "insurance-env",
+  "id": "insurance-env-dev",
+  "name": "DEV - Render (pas-insurance-core.onrender.com)",
   "values": [
     {
       "key": "baseUrl",
@@ -8,29 +8,58 @@
       "enabled": true
     },
     {
+      "key": "maxResponseTime",
+      "value": "10000",
+      "enabled": true,
+      "description": "Render free tier can take 30-60s on cold start. Set high to avoid false SLA failures."
+    },
+    {
       "key": "agentId",
       "value": "",
-      "enabled": true
+      "enabled": true,
+      "description": "Populated automatically by [SETUP] Create Agent test"
     },
     {
       "key": "clientId",
       "value": "",
-      "enabled": true
+      "enabled": true,
+      "description": "Populated automatically by [SETUP] Create Client test"
     },
     {
       "key": "quoteId",
       "value": "",
-      "enabled": true
+      "enabled": true,
+      "description": "Populated automatically by 1.3 Create Quote test"
     },
     {
       "key": "insuredId",
       "value": "",
-      "enabled": true
+      "enabled": true,
+      "description": "Populated automatically by 1.4 Add Insured Person test"
     },
     {
       "key": "coverId",
       "value": "",
-      "enabled": true
+      "enabled": true,
+      "description": "Populated automatically by 1.5 Create Cover test"
+    },
+    {
+      "key": "agentEmail",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
+    },
+    {
+      "key": "clientEmail",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
+    },
+    {
+      "key": "phoneNumber",
+      "value": "",
+      "enabled": true,
+      "description": "Generated dynamically in pre-request script"
     }
   ]
-}
+}

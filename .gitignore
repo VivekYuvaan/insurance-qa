@@ -4,10 +4,9 @@ npm-debug.log
 package-lock.json
 yarn.lock
 
-# Reports and test outputs
-reports/
-*.html
-*.json
+# Reports and test outputs (keep .gitkeep, ignore generated files)
+reports/*.html
+reports/*.json
 !collections/*.json
 !data/*.json
 
@@ -44,5 +43,4 @@ logs/
 npm-debug.log*
 
 # Insurance QA specific ignores
-reports/*
-!reports/.gitkeep
+# reports/*.html and reports/*.json are already handled above
