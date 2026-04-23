@@ -16,7 +16,11 @@
     "test:ci": "newman run collections/insurance-enterprise-v1-stable.json --environment collections/insurance-env.json --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-qa-report.html --reporter-json-export reports/insurance-qa-report.json --bail",
     "install-reporters": "npm install -g newman-reporter-html newman-reporter-htmlextra",
     "setup": "npm install -g newman && npm run install-reporters",
-    "clean-reports": "rm -rf reports/*.html reports/*.json"
+    "clean-reports": "rm -rf reports/*.html reports/*.json",
+    "test:v2": "newman run collections/insurance-enterprise-v2-complete.json --environment collections/insurance-env.json --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-v2-report.html --reporter-json-export reports/insurance-v2-report.json --bail --verbose",
+    "test:v2:local": "newman run collections/insurance-enterprise-v2-complete.json --environment collections/insurance-local-env.json --reporters cli,htmlextra --reporter-htmlextra-export reports/insurance-v2-local-report.html --bail",
+    "test:v2:data-driven": "newman run collections/insurance-enterprise-v2-complete.json --environment collections/insurance-env.json --iteration-data data/test-data-v2.csv --folder \"00 - Setup\" --folder \"01 - Quote Lifecycle\" --reporters cli,htmlextra,json --reporter-htmlextra-export reports/insurance-v2-data-driven-report.html --reporter-json-export reports/insurance-v2-data-driven-report.json --bail",
+    "test:compare": "npm run test -- --reporter-htmlextra-export reports/v1-report.html && npm run test:v2 -- --reporter-htmlextra-export reports/v2-report.html"
   },
   "keywords": [
     "insurance",

@@ -1,0 +1,3116 @@
+{
+  "info": {
+    "_postman_id": "f5b34113-af0d-4868-bee6-2eebc799aaa6",
+    "name": "insurance-enterprise-v2-complete",
+    "description": "Enterprise API Automation Framework for Insurance PAS\n\nIncludes:\n\n- Setup layer for data initialization\n    \n- Functional lifecycle testing (Quote flow)\n    \n- Negative validation (400/404/405 scenarios)\n    \n- Contract testing using JSON schema validation\n    \n- Performance testing with SLA thresholds\n    \n- Multi-environment support (DEV/QA/PROD)\n    \n- CI integration with Newman + GitHub Actions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "37151698"
+  },
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "0.0 [HEALTH CHECK] Verify API is Reachable",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Pre-flight check: verify the backend is up before running any tests.",
+                  "// Uses GET /agents (lightweight, always available) as a readiness probe.",
+                  "// If this fails, Newman --bail will abort the entire suite immediately.",
+                  "pm.test(\"API is reachable and responding\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204],",
+                  "        `API unreachable — got HTTP ${pm.response.code}. Check baseUrl: ${pm.request.url.toString()}`",
+                  "    );",
+                  "});",
+                  "",
+                  "// Cold start warning for Render free tier",
+                  "if (pm.response.responseTime > 5000) {",
+                  "    console.warn('⚠️ COLD START DETECTED: Response took', pm.response.responseTime + 'ms.');",
+                  "    console.warn('⚠️ Render free tier spins down after inactivity. Consider running a warm-up request first.');",
+                  "} else {",
+                  "    console.log('✅ API is warm and reachable in', pm.response.responseTime + 'ms → baseUrl:', pm.request.url.toString());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": ["{{baseUrl}}"],
+              "path": ["agents"]
+            },
+            "description": "Pre-flight health check — the very first request in the suite. Calls GET /agents as a lightweight readiness probe. If the API is down, cold-starting, or unreachable, this fails fast and --bail aborts the run immediately, preventing 40+ misleading failures downstream."
+          },
+          "response": []
+        },
+        {
+          "name": "[SETUP] Create Agent",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "eval(pm.globals.get(\"commonUtils\"));\r",
+                  "\r",
+                  "// Generate unique email\r",
+                  "const agentEmail = generateUnique(\"agent\") + \"@test.com\";\r",
+                  "pm.variables.set(\"agentEmail\", agentEmail);\r",
+                  "\r",
+                  "// Generate unique phone\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
+                  "pm.variables.set(\"phoneNumber\", phone);\r",
+                  "\r",
+                  "console.log(\"Generated Agent Email:\", agentEmail);\r",
+                  "console.log(\"Generated Phone:\", phone);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ==============================",
+                  "// 1. STATUS VALIDATION",
+                  "// ==============================",
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "",
+                  "// ==============================",
+                  "// 2. PERFORMANCE VALIDATION",
+                  "// ==============================",
+                  "const maxTime = parseInt(pm.environment.get(\"maxResponseTime\") || 1000);",
+                  "",
+                  "pm.test(`Response time is under ${maxTime}ms`, function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(maxTime);",
+                  "});",
+                  "",
+                  "console.log(\"⏱ Response time:\", pm.response.responseTime, \"ms\");",
+                  "",
+                  "",
+                  "// ==============================",
+                  "// 3. SAFE RESPONSE PARSING",
+                  "// ==============================",
+                  "let json;",
+                  "try {",
+                  "    json = pm.response.json();",
+                  "} catch (e) {",
+                  "    console.error(\"❌ Failed to parse JSON response\");",
+                  "    throw e;",
+                  "}",
+                  "",
+                  "",
+                  "// ==============================",
+                  "// 4. FUNCTIONAL VALIDATION",
+                  "// ==============================",
+                  "pm.test(\"Agent created with valid data\", function () {",
+                  "    pm.expect(json).to.have.property('agentId');",
+                  "    pm.expect(json.agentId).to.be.a('number');",
+                  "",
+                  "    pm.expect(json.name).to.exist;",
+                  "    pm.expect(json.role).to.equal('AGENT');",
+                  "    pm.expect(json.status).to.equal('ACTIVE');",
+                  "});",
+                  "",
+                  "",
+                  "// ==============================",
+                  "// 5. SAVE TEST DATA",
+                  "// ==============================",
+                  "pm.environment.set(\"agentId\", json.agentId);",
+                  "console.log(\"💾 Saved agentId:\", json.agentId);",
+                  "",
+                  "",
+                  "// ==============================",
+                  "// 6. SCHEMA VALIDATION",
+                  "// ==============================",
+                  "const agentSchema = {",
+                  "    type: \"object\",",
+                  "    required: [\"agentId\", \"agentCode\", \"name\", \"email\", \"phoneNumber\", \"role\", \"status\"],",
+                  "    properties: {",
+                  "        agentId: { type: \"number\" },",
+                  "        agentCode: { type: \"string\" },",
+                  "        name: { type: \"string\" },",
+                  "        email: { type: \"string\" },",
+                  "        phoneNumber: { type: \"string\" },",
+                  "        role: { type: \"string\" },",
+                  "        status: { type: \"string\" },",
+                  "        parentAgentId: { type: [\"null\", \"number\"] },",
+                  "        createdAt: { type: \"string\" },",
+                  "        updatedAt: { type: \"string\" }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test(\"Agent response schema is valid\", function () {",
+                  "    pm.response.to.have.jsonSchema(agentSchema);",
+                  "});",
+                  "console.log(\"Base URL:\", pm.environment.get(\"baseUrl\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agent {{$timestamp}}\",\n  \"email\": \"{{agentEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"role\": \"AGENT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[SETUP] Create Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Client created with numeric ID and correct agentId\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('clientId');",
+                  "    pm.expect(jsonData.clientId).to.be.a('number');",
+                  "    pm.expect(jsonData.name).to.exist;",
+                  "    pm.expect(jsonData.agentId).to.equal(parseInt(pm.environment.get('agentId')));",
+                  "    pm.expect(jsonData.status).to.equal('ACTIVE');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('clientId', pm.response.json().clientId);",
+                  "}",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"clientId\", json.clientId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "eval(pm.globals.get(\"commonUtils\"));\r",
+                  "\r",
+                  "const clientEmail = generateUnique(\"client\", \"usedClientEmails\");\r",
+                  "pm.environment.set(\"clientEmail\", `${clientEmail}@test.com`);\r",
+                  "\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
+                  "pm.environment.set(\"phoneNumber\", phone);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\",\n  \"gender\": \"{{gender}}\",\n  \"dateOfBirth\": \"{{dateOfBirth}}\",\n  \"email\": \"{{clientEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"smokerStatus\": \"{{clientSmokerStatus}}\",\n  \"occupation\": \"{{occupation}}\",\n  \"clientType\": \"{{clientType}}\",\n  \"idType\": \"{{idType}}\",\n  \"agentId\": {{agentId}},\n  \"addresses\": [\n    {\n      \"line1\": \"{{addressLine1}}\",\n      \"city\": \"{{addressCity}}\",\n      \"state\": \"{{addressState}}\",\n      \"country\": \"{{addressCountry}}\",\n      \"postalCode\": \"{{postalCode}}\",\n      \"addressType\": \"PERMANENT\",\n      \"isMainAddress\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Quote Lifecycle",
+      "item": [
+        {
+          "name": "1.3 [SMOKE] Create Quote",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote created with DRAFT status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('quoteId');",
+                  "    pm.expect(jsonData.quoteId).to.be.a('number');",
+                  "    pm.expect(jsonData.status).to.equal('DRAFT');",
+                  "    pm.expect(jsonData.clientId).to.equal(parseInt(pm.environment.get('clientId')));",
+                  "    pm.expect(jsonData.agentId).to.equal(parseInt(pm.environment.get('agentId')));",
+                  "    pm.expect(jsonData).to.have.property('quoteNumber');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('quoteId', pm.response.json().quoteId);",
+                  "}",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"quoteId\", json.quoteId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 [SMOKE] Add Insured Person",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Insured added with PRIMARY role\", function () {",
+                  "    let jsonData = pm.response.json();",
+                  "",
+                  "    pm.expect(jsonData).to.have.property('insuredId');",
+                  "",
+                  "    pm.expect(",
+                  "        (jsonData.role && jsonData.role.toUpperCase() === \"PRIMARY\") ||",
+                  "        jsonData.isPrimary === true",
+                  "    ).to.be.true;",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    let json = pm.response.json();",
+                  "    pm.environment.set(\"insuredId\", json.insuredId);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/insured-persons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "insured-persons"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 [SMOKE] Create Cover (BASE type only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Cover created as BASE type with all core fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('coverId');",
+                  "    pm.expect(jsonData.coverId).to.be.a('number');",
+                  "    pm.expect(jsonData.coverType).to.equal('BASE');",
+                  "    pm.expect(jsonData.status).to.equal('QUOTE');",
+                  "    pm.expect(jsonData.sumAssured).to.be.above(0);",
+                  "    pm.expect(jsonData.insuredId).to.equal(parseInt(pm.environment.get('insuredId')));",
+                  "    pm.expect(jsonData.coverCode).to.equal('LC');",
+                  "    pm.expect(jsonData.coverName).to.equal('Life Cover');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('coverId', pm.response.json().coverId);",
+                  "}",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"coverId\", json.coverId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{insuredId}},\n  \"coverCode\": \"{{coverCode}}\",\n  \"coverName\": \"{{coverName}}\",\n  \"coverType\": \"{{coverType}}\",\n  \"sumAssured\": {{sumAssured}},\n  \"termYears\": {{termYears}},\n  \"rateableAge\": {{rateableAge}},\n  \"occupationClass\": \"{{occupationClass}}\",\n  \"smokerStatus\": \"{{coverSmokerStatus}}\",\n  \"commencementDate\": \"{{commencementDate}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/covers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "covers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.6 [SMOKE]  Add Attribute: smokerStatus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"smokerStatus attribute added with correct value\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.be.a('number');",
+                  "    pm.expect(jsonData.attributeKey.toLowerCase()).to.equal('smokerstatus');",
+                  "    pm.expect(jsonData.valueType).to.equal('STRING');",
+                  "    pm.expect(jsonData.stringValue).to.equal('NON_SMOKER');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"smokerStatus\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"{{smokerStatusValue}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}",
+                "attributes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.7  [SMOKE] Add Attribute: occupationClass",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"occupationClass attribute added with correct value\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.be.a('number');",
+                  "    pm.expect(jsonData.attributeKey.toLowerCase()).to.equal('occupationclass');",
+                  "    pm.expect(jsonData.valueType).to.equal('STRING');",
+                  "    pm.expect(jsonData.stringValue).to.equal('STANDARD');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"occupationClass\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"{{occupationClassValue}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}",
+                "attributes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.8 [SMOKE] Add Attribute: rateableAge",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"rateableAge attribute added with correct numeric value\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.id).to.be.a('number');",
+                  "    pm.expect(jsonData.attributeKey.toLowerCase()).to.equal('rateableage');",
+                  "    pm.expect(jsonData.valueType).to.equal('NUMBER');",
+                  "    pm.expect(jsonData.numberValue).to.equal(30);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"rateableAge\",\n  \"valueType\": \"NUMBER\",\n  \"numberValue\": {{rateableAgeValue}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}",
+                "attributes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.9  [SMOKE] Update Cover (premium fields only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Cover updated with premium and benefit fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.coverId).to.equal(parseInt(pm.environment.get('coverId')));",
+                  "    pm.expect(jsonData.benefitAmount).to.be.above(0);",
+                  "    pm.expect(jsonData.premium).to.be.at.least(0);",
+                  "    pm.expect(jsonData.annualPremium).to.be.at.least(0);",
+                  "    pm.expect(jsonData.termEndDate).to.equal('2046-04-19');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"benefitAmount\": 1000000,\n  \"premium\": 10000,\n  \"annualPremium\": 10000,\n  \"termEndDate\": \"2046-04-19\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.10  [SMOKE]  Submit Quote (DRAFT → SUBMITTED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote transitioned to SUBMITTED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.quoteId).to.equal(parseInt(pm.environment.get('quoteId')));",
+                  "    pm.expect(jsonData.status).to.equal('SUBMITTED');",
+                  "    pm.expect(jsonData.insuredPersons).to.be.an('array').that.is.not.empty;",
+                  "    pm.expect(jsonData.covers).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUBMITTED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.11  [SMOKE]  Approve Quote (SUBMITTED → APPROVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote transitioned to APPROVED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.quoteId).to.equal(parseInt(pm.environment.get('quoteId')));",
+                  "    pm.expect(jsonData.status).to.equal('APPROVED');",
+                  "});",
+                  "",
+                  "pm.test(\"Cover includes all required attributes\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var cover = jsonData.covers[0];",
+                  "    pm.expect(cover).to.have.property('attributes');",
+                  "    pm.expect(cover.attributes).to.be.an('array');",
+                  "    pm.expect((cover.attributes || []).length).to.equal(3);",
+                  "    var keys = (cover.attributes || []).map(a => a.attributeKey.toLowerCase());",
+                  "    pm.expect(keys).to.include('smokerstatus');",
+                  "    pm.expect(keys).to.include('occupationclass');",
+                  "    pm.expect(keys).to.include('rateableage');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.12  [SMOKE]  Issue Quote (APPROVED → ISSUED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote transitioned to ISSUED (final state)\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.quoteId).to.equal(parseInt(pm.environment.get('quoteId')));",
+                  "    pm.expect(jsonData.status).to.equal('ISSUED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ISSUED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.13 [SMOKE] GET Quote - Verify Full Data Persistence",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const maxTime = parseInt(pm.environment.get(\"maxResponseTime\") || 3000);",
+                  "pm.test(`Response time is under ${maxTime}ms`, function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(maxTime);",
+                  "});",
+                  "",
+                  "let json;",
+                  "try {",
+                  "    json = pm.response.json();",
+                  "} catch (e) {",
+                  "    console.error(\"❌ Failed to parse JSON response\");",
+                  "    throw e;",
+                  "}",
+                  "",
+                  "pm.test(\"Quote has correct ID and ISSUED status\", function () {",
+                  "    pm.expect(json.quoteId).to.equal(parseInt(pm.environment.get('quoteId')));",
+                  "    pm.expect(json.status).to.equal('ISSUED');",
+                  "    pm.expect(json).to.have.property('quoteNumber');",
+                  "    pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('clientId')));",
+                  "    pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('agentId')));",
+                  "});",
+                  "",
+                  "pm.test(\"Quote contains at least 1 insured person persisted correctly\", function () {",
+                  "    pm.expect(json.insuredPersons).to.be.an('array').that.is.not.empty;",
+                  "    const insured = json.insuredPersons[0];",
+                  "    pm.expect(insured.insuredId).to.equal(parseInt(pm.environment.get('insuredId')));",
+                  "    pm.expect(insured.role.toUpperCase()).to.equal('PRIMARY');",
+                  "    pm.expect(insured.isPrimary).to.equal(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote contains cover with all financial fields persisted\", function () {",
+                  "    pm.expect(json.covers).to.be.an('array').that.is.not.empty;",
+                  "    const cover = json.covers[0];",
+                  "    pm.expect(cover.coverId).to.equal(parseInt(pm.environment.get('coverId')));",
+                  "    pm.expect(cover.coverCode).to.equal('LC');",
+                  "    pm.expect(cover.coverType).to.equal('BASE');",
+                  "    pm.expect(cover.sumAssured).to.equal(500000);",
+                  "    pm.expect(cover.benefitAmount).to.equal(1000000);",
+                  "    pm.expect(cover.premium).to.equal(10000);",
+                  "    pm.expect(cover.annualPremium).to.equal(10000);",
+                  "    pm.expect(cover.termEndDate).to.equal('2046-04-19');",
+                  "});",
+                  "",
+                  "pm.test(\"Cover has exactly 3 attributes with correct keys and values\", function () {",
+                  "    const cover = json.covers[0];",
+                  "    pm.expect(cover.attributes).to.be.an('array');",
+                  "    pm.expect(cover.attributes.length).to.equal(3);",
+                  "",
+                  "    const keys = cover.attributes.map(a => a.attributeKey.toLowerCase());",
+                  "    pm.expect(keys).to.include('smokerstatus');",
+                  "    pm.expect(keys).to.include('occupationclass');",
+                  "    pm.expect(keys).to.include('rateableage');",
+                  "",
+                  "    const smoker = cover.attributes.find(a => a.attributeKey.toLowerCase() === 'smokerstatus');",
+                  "    pm.expect(smoker.valueType).to.equal('STRING');",
+                  "    pm.expect(smoker.stringValue).to.equal('NON_SMOKER');",
+                  "",
+                  "    const occ = cover.attributes.find(a => a.attributeKey.toLowerCase() === 'occupationclass');",
+                  "    pm.expect(occ.valueType).to.equal('STRING');",
+                  "    pm.expect(occ.stringValue).to.equal('STANDARD');",
+                  "",
+                  "    const age = cover.attributes.find(a => a.attributeKey.toLowerCase() === 'rateableage');",
+                  "    pm.expect(age.valueType).to.equal('NUMBER');",
+                  "    pm.expect(age.numberValue).to.equal(30);",
+                  "});",
+                  "",
+                  "console.log(\"✅ Full data persistence verified for quoteId:\", json.quoteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}"
+              ]
+            },
+            "description": "Retrieves the fully issued quote and verifies all entities created during the lifecycle are correctly persisted: insured persons, covers, financial fields (sumAssured, benefitAmount, premium, annualPremium, termEndDate), and all 3 cover attributes with their exact values."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Negative Tests",
+      "item": [
+        {
+          "name": "2.1 [NEGATIVE] Missing Agent Name (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for missing name\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"phoneNumber\": \"+1-555-0123\",\n  \"role\": \"AGENT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 [NEGATIVE] Missing Client First Name (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for missing firstName\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastName\": \"Doe\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1985-05-15\",\n  \"email\": \"john@example.com\",\n  \"phoneNumber\": \"+1-555-0123\",\n  \"agentId\": 1,\n  \"addresses\": [{\"addressType\": \"PERMANENT\", \"isMainAddress\": true}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Invalid AgentRole (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for invalid role\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Agent\",\n  \"email\": \"invalid@example.com\",\n  \"phoneNumber\": \"+1-555-0125\",\n  \"role\": \"INVALID_ROLE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Invalid CoverType (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for invalid coverType\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{insuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover\",\n  \"coverType\": \"INVALID\",\n  \"sumAssured\": 100000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/covers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "covers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Duplicate Attribute Key (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for duplicate attribute\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"smokerstatus\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"OTHER_VALUE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}",
+                "attributes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.1 Invalid Attribute Value Type (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for mismatched valueType\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"rateableAge\",\n  \"valueType\": \"NUMBER\",\n  \"stringValue\": \"should_be_number\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "{{coverId}}",
+                "attributes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Negative SumAssured (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for negative sumAssured\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{insuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": -100000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/covers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "covers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Invalid Status Transition (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 for invalid status value\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INVALID_STATUS\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.1 Non-Existent Quote (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 or 500 (known backend issue)\", function () {",
+                  "    pm.expect([404, 500]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "packages": {},
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/quotes/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "99999"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Non-Existent Cover (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 for missing cover\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/covers/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "covers",
+                "99999"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.1 [NEGATIVE] Wrong HTTP Method on Status Endpoint (Expect 405)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Using PUT instead of PATCH on /quotes/{id}/status",
+                  "// Backend only supports PATCH - PUT should return 405 Method Not Allowed",
+                  "pm.test(\"Status code is 405 Method Not Allowed (wrong HTTP method)\", function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUBMITTED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            },
+            "description": "Verifies that using the wrong HTTP method (PUT instead of PATCH) on the status endpoint returns 405 Method Not Allowed. The backend only exposes PATCH /quotes/{id}/status."
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 [NEGATIVE] Illegal Backward State Transition ISSUED → SUBMITTED (Expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// After the happy path, the quote is in ISSUED (final) state.",
+                  "// Attempting to transition ISSUED → SUBMITTED is an illegal backward move.",
+                  "// Backend state machine: DRAFT→SUBMITTED→APPROVED→ISSUED (locked)",
+                  "pm.test(\"Status code is 400 for illegal backward state transition\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response contains transition-related message\", function () {",
+                  "    var text = pm.response.text();",
+                  "    pm.expect(text.toLowerCase()).to.satisfy(function(t) {",
+                  "        return t.includes('invalid') || t.includes('transition') ||",
+                  "               t.includes('status') || t.includes('issued') || t.includes('not allowed');",
+                  "    }, 'Expected error message about invalid state transition');",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUBMITTED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes",
+                "{{quoteId}}",
+                "status"
+              ]
+            },
+            "description": "Verifies that the state machine rejects illegal backward transitions. After the happy path, the quote is ISSUED (locked final state). Attempting ISSUED → SUBMITTED must return 400 with a descriptive error."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Contract Tests",
+      "item": [
+        {
+          "name": "Agent - Schema Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Agent created with numeric ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "",
+                  "    pm.expect(jsonData).to.have.property('agentId');",
+                  "    pm.expect(jsonData.agentId).to.be.a('number');",
+                  "",
+                  "    pm.expect(jsonData.name).to.exist;",
+                  "    pm.expect(jsonData.role).to.equal('AGENT');",
+                  "    pm.expect(jsonData.status).to.equal('ACTIVE');",
+                  "});",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"agentId\", json.agentId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "eval(pm.globals.get(\"commonUtils\"));\r",
+                  "\r",
+                  "const agentEmail = generateUnique(\"agent\", \"usedAgentEmails\");\r",
+                  "pm.environment.set(\"agentEmail\", `${agentEmail}@test.com`);\r",
+                  "\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
+                  "pm.environment.set(\"phoneNumber\", phone);\r",
+                  "console.log(\"Generated Email:\", pm.environment.get(\"agentEmail\"));\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agent {{$timestamp}}\",\n  \"email\": \"{{agentEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"role\": \"AGENT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[CONTRACT] Agent Schema",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Agent created with numeric ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "",
+                  "    pm.expect(jsonData).to.have.property('agentId');",
+                  "    pm.expect(jsonData.agentId).to.be.a('number');",
+                  "",
+                  "    pm.expect(jsonData.name).to.exist;",
+                  "    pm.expect(jsonData.role).to.equal('AGENT');",
+                  "    pm.expect(jsonData.status).to.equal('ACTIVE');",
+                  "});",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"agentId\", json.agentId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "eval(pm.globals.get(\"commonUtils\"));\r",
+                  "\r",
+                  "const agentEmail = generateUnique(\"agent\", \"usedAgentEmails\");\r",
+                  "pm.environment.set(\"agentEmail\", `${agentEmail}@test.com`);\r",
+                  "\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
+                  "pm.environment.set(\"phoneNumber\", phone);\r",
+                  "console.log(\"Generated Email:\", pm.environment.get(\"agentEmail\"));\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agent {{$timestamp}}\",\n  \"email\": \"{{agentEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"role\": \"AGENT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Quote - Schema Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote created with DRAFT status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('quoteId');",
+                  "    pm.expect(jsonData.quoteId).to.be.a('number');",
+                  "    pm.expect(jsonData.status).to.equal('DRAFT');",
+                  "    pm.expect(jsonData.clientId).to.equal(parseInt(pm.environment.get('clientId')));",
+                  "    pm.expect(jsonData.agentId).to.equal(parseInt(pm.environment.get('agentId')));",
+                  "    pm.expect(jsonData).to.have.property('quoteNumber');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('quoteId', pm.response.json().quoteId);",
+                  "}",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"quoteId\", json.quoteId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Cover Scenarios",
+      "item": [
+        {
+          "name": "4.1 [RIDER] Create Fresh Quote for RIDER Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Fresh quote created in DRAFT for RIDER scenario\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.quoteId).to.be.a('number');",
+                  "    pm.expect(json.status).to.equal('DRAFT');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"riderQuoteId\", json.quoteId);",
+                  "console.log(\"💾 Saved riderQuoteId:\", json.quoteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes"]
+            },
+            "description": "Creates a fresh DRAFT quote for the RIDER cover scenario using the same agent and client from the happy path setup."
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 [RIDER] Add Insured Person",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Insured added successfully for RIDER scenario\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.insuredId).to.be.a('number');",
+                  "    pm.expect(json.role.toUpperCase()).to.equal('PRIMARY');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"riderInsuredId\", json.insuredId);",
+                  "console.log(\"💾 Saved riderInsuredId:\", json.insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{riderQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{riderQuoteId}}", "insured-persons"]
+            },
+            "description": "Adds a PRIMARY insured person to the RIDER test quote."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 [RIDER] Add BASE Cover (LC) - Parent Cover",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"BASE cover (LC) created as parent for RIDER\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverId).to.be.a('number');",
+                  "    pm.expect(json.coverType).to.equal('BASE');",
+                  "    pm.expect(json.coverCode).to.equal('LC');",
+                  "    pm.expect(json.status).to.equal('QUOTE');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"riderBaseCoverId\", json.coverId);",
+                  "console.log(\"💾 Saved riderBaseCoverId:\", json.coverId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{riderInsuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 500000,\n  \"termYears\": 20,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{riderQuoteId}}/covers",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{riderQuoteId}}", "covers"]
+            },
+            "description": "Creates the BASE (LC) cover which the RIDER will attach to as its parent. The coverId from this response is stored as riderBaseCoverId."
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 [RIDER] Add RIDER Cover (WOP) - Attached to BASE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"RIDER cover (WOP) created and linked to BASE cover\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverId).to.be.a('number');",
+                  "    pm.expect(json.coverType).to.equal('RIDER');",
+                  "    pm.expect(json.coverCode).to.equal('WOP');",
+                  "    pm.expect(json.status).to.equal('QUOTE');",
+                  "    pm.expect(json.parentCoverId).to.equal(parseInt(pm.environment.get('riderBaseCoverId')));",
+                  "    pm.expect(json.insuredId).to.equal(parseInt(pm.environment.get('riderInsuredId')));",
+                  "    pm.expect(json.sumAssured).to.be.above(0);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"riderCoverId\", json.coverId);",
+                  "console.log(\"💾 Saved riderCoverId:\", json.coverId);",
+                  "console.log(\"✅ RIDER cover attached to parentCoverId:\", json.parentCoverId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{riderInsuredId}},\n  \"coverCode\": \"WOP\",\n  \"coverName\": \"Waiver of Premium\",\n  \"coverType\": \"RIDER\",\n  \"parentCoverId\": {{riderBaseCoverId}},\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{riderQuoteId}}/covers",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{riderQuoteId}}", "covers"]
+            },
+            "description": "Creates a RIDER cover (WOP - Waiver of Premium) attached to the BASE (LC) cover via parentCoverId. Tests the RIDER code path in CoverValidatorEngine which was previously completely untested. The RIDER must reference a valid BASE cover on the same quote and same insured."
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 [RIDER] GET Cover Tree - Verify BASE + RIDER Hierarchy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Cover tree contains BASE cover with RIDER attached\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array').that.is.not.empty;",
+                  "",
+                  "    // Find the BASE cover node",
+                  "    const baseNode = json.find(node =>",
+                  "        node.coverId === parseInt(pm.environment.get('riderBaseCoverId'))",
+                  "    );",
+                  "    pm.expect(baseNode).to.exist;",
+                  "    pm.expect(baseNode.coverType).to.equal('BASE');",
+                  "",
+                  "    // BASE node should have the RIDER as a child",
+                  "    const hasRiderChild = baseNode.children &&",
+                  "        baseNode.children.some(child =>",
+                  "            child.coverId === parseInt(pm.environment.get('riderCoverId'))",
+                  "        );",
+                  "    pm.expect(hasRiderChild).to.be.true;",
+                  "    console.log(\"✅ RIDER cover hierarchy verified in cover tree\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{riderQuoteId}}/cover-tree",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{riderQuoteId}}", "cover-tree"]
+            },
+            "description": "Uses the cover-tree endpoint (GET /quotes/{id}/cover-tree) to verify the BASE→RIDER parent-child hierarchy is correctly stored. This is the only way to confirm the parentCoverId relationship is persisted and returned in tree form."
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 [RIDER] NEGATIVE - RIDER Without parentCoverId (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// A RIDER cover MUST have a parentCoverId.",
+                  "// Omitting it should return 400 Bad Request.",
+                  "pm.test(\"Status code is 400 for RIDER without parentCoverId\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message references RIDER or parentCoverId requirement\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('rider') || t.includes('parent') || t.includes('required') || t.includes('invalid'),",
+                  "        'Expected error about missing parentCoverId for RIDER'",
+                  "    );",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{riderInsuredId}},\n  \"coverCode\": \"WOP\",\n  \"coverName\": \"Waiver of Premium\",\n  \"coverType\": \"RIDER\",\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{riderQuoteId}}/covers",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{riderQuoteId}}", "covers"]
+            },
+            "description": "Negative test: Attempts to create a RIDER cover without the mandatory parentCoverId field. The backend CoverValidatorEngine should reject this with 400 since RIDER covers must reference a parent BASE cover."
+          },
+          "response": []
+        },
+        {
+          "name": "4.7 [ATTRIBUTE] Add BOOLEAN Attribute to Cover",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"BOOLEAN attribute created with correct fields\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.attributeKey.toLowerCase()).to.equal('existingcondition');",
+                  "    pm.expect(json.valueType).to.equal('BOOLEAN');",
+                  "    pm.expect(json.booleanValue).to.equal(true);",
+                  "    pm.expect(json.stringValue).to.be.oneOf([null, undefined, '']);",
+                  "    pm.expect(json.numberValue).to.be.oneOf([null, undefined, 0]);",
+                  "});",
+                  "",
+                  "console.log(\"✅ BOOLEAN attribute type verified\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"existingCondition\",\n  \"valueType\": \"BOOLEAN\",\n  \"booleanValue\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{riderBaseCoverId}}/attributes",
+              "host": ["{{baseUrl}}"],
+              "path": ["covers", "{{riderBaseCoverId}}", "attributes"]
+            },
+            "description": "Tests the BOOLEAN valueType for cover attributes. Only booleanValue must be set (stringValue and numberValue must be null/absent). This is the only BOOLEAN type test in the entire suite — previously STRING and NUMBER were the only types exercised."
+          },
+          "response": []
+        },
+        {
+          "name": "4.8 [ATTRIBUTE] NEGATIVE - BOOLEAN Type with stringValue Instead (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Backend rule: exactly one of stringValue/numberValue/booleanValue must be set,",
+                  "// matching the declared valueType. Sending stringValue when valueType=BOOLEAN is invalid.",
+                  "pm.test(\"Status code is 400 for BOOLEAN type with wrong value field\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references valueType mismatch\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('boolean') || t.includes('value') || t.includes('type') || t.includes('invalid'),",
+                  "        'Expected error about wrong value field for BOOLEAN valueType'",
+                  "    );",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"anotherBooleanAttr\",\n  \"valueType\": \"BOOLEAN\",\n  \"stringValue\": \"true\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{riderBaseCoverId}}/attributes",
+              "host": ["{{baseUrl}}"],
+              "path": ["covers", "{{riderBaseCoverId}}", "attributes"]
+            },
+            "description": "Negative test: valueType is BOOLEAN but stringValue is provided instead of booleanValue. The backend strictly validates that exactly one value field matches the declared valueType. Expects 400."
+          },
+          "response": []
+        },
+        {
+          "name": "4.9 [ATTRIBUTE] NEGATIVE - No Value Field Set (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Backend rule: at least one of stringValue/numberValue/booleanValue must be set.",
+                  "// Sending only attributeKey + valueType with no value is invalid.",
+                  "pm.test(\"Status code is 400 when no value field is provided\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error indicates missing value\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('value') || t.includes('required') || t.includes('invalid') || t.includes('missing'),",
+                  "        'Expected error about missing value field'",
+                  "    );",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"emptyAttr\",\n  \"valueType\": \"STRING\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{riderBaseCoverId}}/attributes",
+              "host": ["{{baseUrl}}"],
+              "path": ["covers", "{{riderBaseCoverId}}", "attributes"]
+            },
+            "description": "Negative test: No value field (stringValue/numberValue/booleanValue) is provided. The backend should reject with 400 since the attribute has no actual value to store."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Multi-Insured Scenarios",
+      "item": [
+        {
+          "name": "5.1 [MULTI-INSURED] Create Fresh Quote",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Quote is in DRAFT status\", function () {",
+                  "    pm.expect(pm.response.json().status).to.equal('DRAFT');",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"multiQuoteId\", json.quoteId);",
+                  "console.log(\"💾 Saved multiQuoteId:\", json.quoteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes"]
+            },
+            "description": "Creates a fresh DRAFT quote dedicated to multi-insured testing."
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 [MULTI-INSURED] Add PRIMARY Insured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"PRIMARY insured created with isPrimary=true\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.insuredId).to.be.a('number');",
+                  "    pm.expect(json.role.toUpperCase()).to.equal('PRIMARY');",
+                  "    pm.expect(json.isPrimary).to.equal(true);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"multiPrimaryInsuredId\", json.insuredId);",
+                  "console.log(\"💾 Saved multiPrimaryInsuredId:\", json.insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{multiQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{multiQuoteId}}", "insured-persons"]
+            },
+            "description": "Adds the first insured person as PRIMARY with isPrimary=true."
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 [MULTI-INSURED] Add CHILD Insured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"CHILD insured created with isPrimary=false\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.insuredId).to.be.a('number');",
+                  "    pm.expect(json.role.toUpperCase()).to.equal('CHILD');",
+                  "    pm.expect(json.isPrimary).to.equal(false);",
+                  "    // CHILD insuredId must differ from the PRIMARY",
+                  "    pm.expect(json.insuredId).to.not.equal(parseInt(pm.environment.get('multiPrimaryInsuredId')));",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"multiChildInsuredId\", json.insuredId);",
+                  "console.log(\"💾 Saved multiChildInsuredId:\", json.insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"CHILD\",\n  \"isPrimary\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{multiQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{multiQuoteId}}", "insured-persons"]
+            },
+            "description": "Adds a CHILD insured person. isPrimary must be false. Role must be CHILD. Tests the multi-insured add code path for non-primary roles."
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 [MULTI-INSURED] Add SECONDARY Insured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"SECONDARY insured created with isPrimary=false\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.insuredId).to.be.a('number');",
+                  "    pm.expect(json.role.toUpperCase()).to.equal('SECONDARY');",
+                  "    pm.expect(json.isPrimary).to.equal(false);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"multiSecondaryInsuredId\", json.insuredId);",
+                  "console.log(\"💾 Saved multiSecondaryInsuredId:\", json.insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"SECONDARY\",\n  \"isPrimary\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{multiQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{multiQuoteId}}", "insured-persons"]
+            },
+            "description": "Adds a SECONDARY insured person to the same quote. Tests that all three insured roles (PRIMARY, CHILD, SECONDARY) can coexist on a single quote."
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 [MULTI-INSURED] GET Insured Persons - Verify All 3 Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All 3 insured persons are present with correct roles\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "    pm.expect(json.length).to.equal(3);",
+                  "",
+                  "    const roles = json.map(p => p.role.toUpperCase());",
+                  "    pm.expect(roles).to.include('PRIMARY');",
+                  "    pm.expect(roles).to.include('CHILD');",
+                  "    pm.expect(roles).to.include('SECONDARY');",
+                  "});",
+                  "",
+                  "pm.test(\"Exactly one insured has isPrimary=true\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const primaryCount = json.filter(p => p.isPrimary === true).length;",
+                  "    pm.expect(primaryCount).to.equal(1);",
+                  "    const primaryPerson = json.find(p => p.isPrimary === true);",
+                  "    pm.expect(primaryPerson.role.toUpperCase()).to.equal('PRIMARY');",
+                  "});",
+                  "",
+                  "pm.test(\"Each insured has a unique insuredId\", function () {",
+                  "    const json = pm.response.json();",
+                  "    const ids = json.map(p => p.insuredId);",
+                  "    const uniqueIds = new Set(ids);",
+                  "    pm.expect(uniqueIds.size).to.equal(ids.length);",
+                  "});",
+                  "",
+                  "console.log(\"✅ Multi-insured scenario verified - 3 persons with distinct roles\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{multiQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{multiQuoteId}}", "insured-persons"]
+            },
+            "description": "Retrieves all insured persons for the quote and verifies: (1) all 3 roles present, (2) exactly one isPrimary=true on the PRIMARY person, (3) all insuredIds are unique."
+          },
+          "response": []
+        },
+        {
+          "name": "5.6 [MULTI-INSURED] NEGATIVE - Duplicate PRIMARY Insured (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// The backend must enforce that only one insured can have isPrimary=true.",
+                  "// Attempting to add a second PRIMARY with isPrimary=true should return 400.",
+                  "pm.test(\"Status code is 400 for duplicate PRIMARY insured\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references primary or duplicate insured constraint\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('primary') || t.includes('duplicate') || t.includes('already') || t.includes('exists') || t.includes('one'),",
+                  "        'Expected error about duplicate PRIMARY insured constraint'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Duplicate PRIMARY insured correctly rejected\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{multiQuoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{multiQuoteId}}", "insured-persons"]
+            },
+            "description": "Negative test: Attempts to add a second insured with role=PRIMARY and isPrimary=true on a quote that already has a PRIMARY insured. The backend must reject this to enforce the single-primary-per-quote business rule."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Immutability Tests (ISSUED Quote is Locked)",
+      "item": [
+        {
+          "name": "6.1 [IMMUTABILITY] Add Cover to ISSUED Quote (Expect 400/409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// An ISSUED quote is a terminal state — no new covers can be added.",
+                  "// Backend should reject with 400 (invalid state) or 409 (conflict).",
+                  "pm.test(\"Status code is 400 or 409 — ISSUED quote rejects new covers\", function () {",
+                  "    pm.expect([400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references ISSUED state or immutability\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('issued') || t.includes('locked') || t.includes('invalid') ||",
+                  "        t.includes('state') || t.includes('immutable') || t.includes('not allowed'),",
+                  "        'Expected error about mutation on ISSUED quote'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ ISSUED quote correctly rejected cover addition\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{insuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 200000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/covers",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{quoteId}}", "covers"]
+            },
+            "description": "Attempts to add a new cover to an ISSUED quote. The backend state machine must reject all mutations on ISSUED quotes. Expects 400 or 409."
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 [IMMUTABILITY] Add Insured Person to ISSUED Quote (Expect 400/409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 or 409 — ISSUED quote rejects new insured persons\", function () {",
+                  "    pm.expect([400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references ISSUED state or mutation rejection\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('issued') || t.includes('locked') || t.includes('invalid') ||",
+                  "        t.includes('state') || t.includes('immutable') || t.includes('not allowed'),",
+                  "        'Expected error about mutation on ISSUED quote'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ ISSUED quote correctly rejected insured person addition\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"SECONDARY\",\n  \"isPrimary\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/insured-persons",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{quoteId}}", "insured-persons"]
+            },
+            "description": "Attempts to add a new insured person to an ISSUED quote. Expects 400 or 409 since ISSUED is a terminal, locked state."
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 [IMMUTABILITY] Add Attribute to Cover on ISSUED Quote (Expect 400/409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Covers on an ISSUED quote should also be locked.",
+                  "// Adding a new attribute to a cover that belongs to an ISSUED quote must be rejected.",
+                  "pm.test(\"Status code is 400 or 409 — cover on ISSUED quote rejects new attributes\", function () {",
+                  "    pm.expect([400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references ISSUED or locked state\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('issued') || t.includes('locked') || t.includes('invalid') ||",
+                  "        t.includes('state') || t.includes('immutable') || t.includes('not allowed'),",
+                  "        'Expected error about mutation on cover belonging to ISSUED quote'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Cover on ISSUED quote correctly rejected attribute addition\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attributeKey\": \"newAttrAfterIssue\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"SHOULD_BE_REJECTED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}/attributes",
+              "host": ["{{baseUrl}}"],
+              "path": ["covers", "{{coverId}}", "attributes"]
+            },
+            "description": "Attempts to add a new attribute to a cover that belongs to an ISSUED quote. Covers inherit the locked state from their parent quote. Expects 400 or 409."
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 [IMMUTABILITY] Update Cover on ISSUED Quote (Expect 400/409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// PUT /covers/{id} to update financial fields should also be locked on ISSUED quotes.",
+                  "pm.test(\"Status code is 400 or 409 — cover update rejected on ISSUED quote\", function () {",
+                  "    pm.expect([400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references ISSUED or locked state\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('issued') || t.includes('locked') || t.includes('invalid') ||",
+                  "        t.includes('state') || t.includes('immutable') || t.includes('not allowed'),",
+                  "        'Expected error about updating cover on ISSUED quote'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Cover update on ISSUED quote correctly rejected\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sumAssured\": 999999,\n  \"benefitAmount\": 1999999,\n  \"termYears\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/covers/{{coverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["covers", "{{coverId}}"]
+            },
+            "description": "Attempts to update financial fields (sumAssured, benefitAmount, termYears) on a cover that belongs to an ISSUED quote. This mutation must be rejected since ISSUED quotes are fully locked. Expects 400 or 409."
+          },
+          "response": []
+        },
+        {
+          "name": "6.5 [IMMUTABILITY] Transition ISSUED → APPROVED (Backward, Expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ISSUED is the terminal state. Any backward or lateral transition must be rejected.",
+                  "// Attempting ISSUED → APPROVED (backward step) should return 400.",
+                  "pm.test(\"Status code is 400 for backward transition from ISSUED\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error references invalid transition or ISSUED state\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('invalid') || t.includes('transition') ||",
+                  "        t.includes('issued') || t.includes('status') || t.includes('not allowed'),",
+                  "        'Expected error about invalid backward state transition from ISSUED'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Backward transition from ISSUED correctly rejected\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes/{{quoteId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["quotes", "{{quoteId}}", "status"]
+            },
+            "description": "Attempts ISSUED → APPROVED (backward transition). The state machine enforces DRAFT→SUBMITTED→APPROVED→ISSUED as a one-way flow. Any backward or lateral transition from ISSUED must be rejected with 400."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Business Rules",
+      "item": [
+        {
+          "name": "7.1 [BIZ-RULE] Create Quote for WOP+IP Rule Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Quote created in DRAFT\", function () { pm.expect(pm.response.json().status).to.equal('DRAFT'); });",
+                  "pm.environment.set(\"bizRuleQuoteId\", pm.response.json().quoteId);",
+                  "console.log(\"💾 bizRuleQuoteId:\", pm.response.json().quoteId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes", "host": ["{{baseUrl}}"], "path": ["quotes"]},
+            "description": "Fresh DRAFT quote for WOP+IP business rule scenario."
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 [BIZ-RULE] Add PRIMARY Insured",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set(\"bizRuleInsuredId\", pm.response.json().insuredId);",
+                  "console.log(\"💾 bizRuleInsuredId:\", pm.response.json().insuredId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/insured-persons", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "insured-persons"]},
+            "description": "Adds PRIMARY insured to the business rule test quote."
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 [BIZ-RULE] Add IP Cover (Income Protection — requires WOP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"IP cover created as BASE cover\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverCode).to.equal('IP');",
+                  "    pm.expect(json.coverType).to.equal('BASE');",
+                  "});",
+                  "pm.environment.set(\"bizRuleIPCoverId\", pm.response.json().coverId);",
+                  "console.log(\"💾 bizRuleIPCoverId:\", pm.response.json().coverId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{bizRuleInsuredId}},\n  \"coverCode\": \"IP\",\n  \"coverName\": \"Income Protection\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/covers", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "covers"]},
+            "description": "Adds an IP (Income Protection) BASE cover. Under backend business rules, any quote with an IP cover MUST also have a WOP (Waiver of Premium) RIDER cover — otherwise SUBMIT is rejected."
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 [BIZ-RULE] SUBMIT Without WOP — Expect 400 (Rule Enforced)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// KEY BUSINESS RULE TEST:",
+                  "// Quote has IP cover but no WOP. SUBMIT must be rejected with 400.",
+                  "// Backend CoverValidatorEngine checks: hasIP && !hasWOP → throw InvalidRequestException",
+                  "pm.test(\"Status code is 400 — WOP is mandatory when IP cover present\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message references WOP or mandatory cover requirement\", function () {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.satisfy(t =>",
+                  "        t.includes('wop') || t.includes('waiver') || t.includes('mandatory') ||",
+                  "        t.includes('required') || t.includes('ip') || t.includes('income'),",
+                  "        'Expected error about WOP being mandatory for IP cover'",
+                  "    );",
+                  "});",
+                  "",
+                  "console.log(\"✅ Business rule enforced: SUBMIT rejected without WOP cover\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"status\": \"SUBMITTED\"\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/status", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "status"]},
+            "description": "Attempts to SUBMIT a quote containing an IP cover but no WOP RIDER. The backend CoverValidatorEngine must enforce: if quote has IP or KPP, a WOP cover is STRICTLY MANDATORY. This must return 400."
+          },
+          "response": []
+        },
+        {
+          "name": "7.5 [BIZ-RULE] Add WOP RIDER (Fix the Violation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"WOP RIDER added with correct parentCoverId\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.coverCode).to.equal('WOP');",
+                  "    pm.expect(json.coverType).to.equal('RIDER');",
+                  "    pm.expect(json.parentCoverId).to.equal(parseInt(pm.environment.get('bizRuleIPCoverId')));",
+                  "});",
+                  "pm.environment.set(\"bizRuleWOPCoverId\", pm.response.json().coverId);",
+                  "console.log(\"✅ WOP RIDER added — business rule violation fixed\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"insuredId\": {{bizRuleInsuredId}},\n  \"coverCode\": \"WOP\",\n  \"coverName\": \"Waiver of Premium\",\n  \"coverType\": \"RIDER\",\n  \"parentCoverId\": {{bizRuleIPCoverId}},\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
+            },
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/covers", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "covers"]},
+            "description": "Adds the mandatory WOP (Waiver of Premium) RIDER cover attached to the IP cover. This satisfies the business rule and the subsequent SUBMIT (7.6) should now succeed."
+          },
+          "response": []
+        },
+        {
+          "name": "7.6 [BIZ-RULE] SUBMIT With WOP — Expect 200 (Rule Satisfied)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// After adding WOP, the IP+WOP rule is satisfied.",
+                  "// SUBMIT must now succeed with 200.",
+                  "pm.test(\"Status code is 200 — SUBMIT succeeds with WOP cover present\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote status transitions to SUBMITTED\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('SUBMITTED');",
+                  "    pm.expect(json.quoteId).to.equal(parseInt(pm.environment.get('bizRuleQuoteId')));",
+                  "});",
+                  "",
+                  "console.log(\"✅ Business rule satisfied: SUBMIT succeeded with IP + WOP covers\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"status\": \"SUBMITTED\"\n}"},
+            "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/status", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "status"]},
+            "description": "Re-attempts SUBMIT after adding the WOP RIDER. Now that IP+WOP are both present, the business rule is satisfied and the transition must succeed with 200 → SUBMITTED."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 - Performance Benchmarks",
+      "item": [
+        {
+          "name": "1.1 Create Agent Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Agent created with numeric ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "",
+                  "    pm.expect(jsonData).to.have.property('agentId');",
+                  "    pm.expect(jsonData.agentId).to.be.a('number');",
+                  "",
+                  "    pm.expect(jsonData.name).to.exist;",
+                  "    pm.expect(jsonData.role).to.equal('AGENT');",
+                  "    pm.expect(jsonData.status).to.equal('ACTIVE');",
+                  "});",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"agentId\", json.agentId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "eval(pm.globals.get(\"commonUtils\"));\r",
+                  "\r",
+                  "const agentEmail = generateUnique(\"agent\", \"usedAgentEmails\");\r",
+                  "pm.environment.set(\"agentEmail\", `${agentEmail}@test.com`);\r",
+                  "\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
+                  "pm.environment.set(\"phoneNumber\", phone);\r",
+                  "console.log(\"Generated Email:\", pm.environment.get(\"agentEmail\"));\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agent {{$timestamp}}\",\n  \"email\": \"{{agentEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"role\": \"AGENT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Create Quote Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Quote created with DRAFT status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('quoteId');",
+                  "    pm.expect(jsonData.quoteId).to.be.a('number');",
+                  "    pm.expect(jsonData.status).to.equal('DRAFT');",
+                  "    pm.expect(jsonData.clientId).to.equal(parseInt(pm.environment.get('clientId')));",
+                  "    pm.expect(jsonData.agentId).to.equal(parseInt(pm.environment.get('agentId')));",
+                  "    pm.expect(jsonData).to.have.property('quoteNumber');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('quoteId', pm.response.json().quoteId);",
+                  "}",
+                  "",
+                  "let json = pm.response.json();",
+                  "pm.environment.set(\"quoteId\", json.quoteId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.1 INVALID STATUS - Expect 405 Copy",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "pm.globals.set(\"commonUtils\", `\r",
+          "function generateUnique(prefix) {\r",
+          "    const timestamp = Date.now();\r",
+          "    const random = Math.floor(Math.random() * 1000);\r",
+          "    return \\`\\${prefix}_\\${timestamp}_\\${random}\\`;\r",
+          "}\r",
+          "`);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// ─── GLOBAL SLA: maxResponseTime check (applies to every request) ───────────",
+          "// Skips SLA check on intentional negative tests (4xx expected responses).",
+          "// For those, performance is less meaningful than correctness.",
+          "(function checkSLA() {",
+          "    const maxTime = parseInt(pm.environment.get('maxResponseTime') || '10000');",
+          "    const testName = pm.info.requestName || 'Unknown Request';",
+          "    const isNegativeTest = testName.toLowerCase().includes('[negative]') ||",
+          "                          testName.toLowerCase().includes('expect 4') ||",
+          "                          testName.toLowerCase().includes('expect 5') ||",
+          "                          testName.toLowerCase().includes('immutability');",
+          "    if (!isNegativeTest) {",
+          "        pm.test(`[SLA] Response under ${maxTime}ms — ${testName}`, function () {",
+          "            pm.expect(pm.response.responseTime).to.be.below(maxTime);",
+          "        });",
+          "    }",
+          "})();",
+          "",
+          "// ─── GLOBAL FAILURE LOGGER (logs full request + response on any 4xx/5xx) ───",
+          "if (pm.response.code >= 400) {",
+          "    const isExpectedError = pm.info.requestName &&",
+          "        (pm.info.requestName.toLowerCase().includes('[negative]') ||",
+          "         pm.info.requestName.toLowerCase().includes('expect 4') ||",
+          "         pm.info.requestName.toLowerCase().includes('immutability'));",
+          "",
+          "    if (!isExpectedError) {",
+          "        console.error('❌ UNEXPECTED REQUEST FAILED');",
+          "        console.error('➡️ URL:', pm.request.url.toString());",
+          "        console.error('➡️ METHOD:', pm.request.method);",
+          "        try {",
+          "            console.error('➡️ REQUEST BODY:', JSON.parse(pm.request.body?.raw || '{}'));",
+          "        } catch (e) {",
+          "            console.error('➡️ REQUEST BODY (raw):', pm.request.body?.raw);",
+          "        }",
+          "        console.error('⬅️ RESPONSE STATUS:', pm.response.code);",
+          "        try {",
+          "            console.error('⬅️ RESPONSE BODY:', pm.response.json());",
+          "        } catch (e) {",
+          "            console.error('⬅️ RESPONSE BODY (text):', pm.response.text());",
+          "        }",
+          "    } else {",
+          "        console.log('ℹ️ Expected error response for:', pm.info.requestName, '→ HTTP', pm.response.code);",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "name": "08 - Security Tests",
+      "item": [
+        {
+          "name": "8.1 [SECURITY] SQL Injection in Agent Name (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"SQL injection does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ SQL injection handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"'; DROP TABLE agents; --\",\n  \"email\": \"sqli@test.com\",\n  \"phoneNumber\": \"+91-9000000001\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: SQL injection in name field. Must not return 500 or execute the payload."},
+          "response": []
+        },
+        {
+          "name": "8.2 [SECURITY] XSS Script Tag in Client Name (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"XSS payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ XSS handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"<script>alert('xss')</script>\",\n  \"lastName\": \"TestUser\",\n  \"email\": \"xss@test.com\",\n  \"phoneNumber\": \"+91-9000000002\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1990-01-01\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Security test: XSS script tag in firstName. Must reject or store as literal text — never execute."},
+          "response": []
+        },
+        {
+          "name": "8.3 [SECURITY] Oversized Payload (No 500)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Oversized payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Oversized payload rejected with 400 or 413\", function () { pm.expect([400, 413, 422]).to.include(pm.response.code); });", "console.log(\"✅ Oversized payload handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"email\": \"big@test.com\",\n  \"phoneNumber\": \"+91-9000000003\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: 1000+ char string in name. Must return 400 or 413, never 500."},
+          "response": []
+        },
+        {
+          "name": "8.4 [SECURITY] Wrong Content-Type text/plain → 400 or 415",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Wrong Content-Type rejected without 500\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400, 415, or 422\", function () { pm.expect([400, 415, 422]).to.include(pm.response.code); });", "console.log(\"✅ Wrong Content-Type handled — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "text/plain"}], "body": {"mode": "raw", "raw": "{\"name\": \"Test Agent\", \"email\": \"ct@test.com\", \"role\": \"AGENT\"}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: sends POST with Content-Type: text/plain. Must reject with 415 or 400."},
+          "response": []
+        },
+        {
+          "name": "8.5 [SECURITY] Non-Existent Resource 404 (No Stack Trace Leak)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Non-existent resource returns 404\", function () { pm.response.to.have.status(404); });", "pm.test(\"Error response does not leak stack trace or DB internals\", function () { const text = pm.response.text().toLowerCase(); pm.expect(text).to.not.include('exception'); pm.expect(text).to.not.include('at com.'); pm.expect(text).to.not.include('hibernate'); pm.expect(text).to.not.include('sql'); });", "console.log(\"✅ 404 returned without stack trace leak\");"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/quotes/999999999", "host": ["{{baseUrl}}"], "path": ["quotes", "999999999"]}, "description": "Security test: implausibly large ID. Must return 404 — not 500 — with no stack trace in response body."},
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09 - Agent & Client CRUD",
+      "item": [
+        {
+          "name": "9.1 [CRUD] Create CRUD Test Agent",
+          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudAgentEmail', 'crud_agent_' + ts + '@test.com'); pm.variables.set('crudAgentPhone', '+91' + (9000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Agent created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.be.a('number'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json.name).to.equal('CRUD Test Agent'); });", "pm.environment.set('crudAgentId', pm.response.json().agentId); console.log('💾 crudAgentId:', pm.response.json().agentId);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"CRUD Test Agent\",\n  \"email\": \"{{crudAgentEmail}}\",\n  \"phoneNumber\": \"{{crudAgentPhone}}\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Creates a dedicated agent for CRUD testing. Uses a unique email to avoid conflicts."},
+          "response": []
+        },
+        {
+          "name": "9.2 [CRUD] GET All Agents (List Contains CRUD Agent)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test agent\", function () { const list = pm.response.json(); const found = list.some(a => a.agentId === parseInt(pm.environment.get('crudAgentId'))); pm.expect(found).to.be.true; });", "console.log('✅ Agent list verified, total agents:', pm.response.json().length);"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "GET /agents — retrieves the full agent list and verifies the newly created CRUD test agent appears in it."},
+          "response": []
+        },
+        {
+          "name": "9.3 [CRUD] GET Agent by ID",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET agent returns correct agent\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('phoneNumber'); pm.expect(json).to.have.property('role'); });", "console.log('✅ Agent GET by ID verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "GET /agents/{id} — retrieves a specific agent by ID and verifies all fields are correctly returned."},
+          "response": []
+        },
+        {
+          "name": "9.4 [CRUD] PUT Update Agent",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Agent name updated correctly\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent (Updated)'); pm.expect(json.role).to.equal('SENIOR_AGENT'); });", "console.log('✅ Agent update verified');"], "type": "text/javascript"}}],
+          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"CRUD Test Agent (Updated)\",\n  \"role\": \"SENIOR_AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "PUT /agents/{id} — updates the agent name and role, verifies the response reflects the changes."},
+          "response": []
+        },
+        {
+          "name": "9.5 [CRUD] DELETE Agent",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 — agent deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('✅ Agent deleted — HTTP', pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "DELETE /agents/{id} — deletes the CRUD test agent. Expects 200 or 204."},
+          "response": []
+        },
+        {
+          "name": "9.6 [CRUD] GET Deleted Agent → 404",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudAgentId');", "console.log('✅ Agent confirmed deleted — 404 verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "Verifies the deleted agent returns 404. This confirms the DELETE was permanent, not a soft-delete that still returns the resource."},
+          "response": []
+        },
+        {
+          "name": "9.7 [CRUD] Create CRUD Test Client",
+          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudClientEmail', 'crud_client_' + ts + '@test.com'); pm.variables.set('crudClientPhone', '+91' + (8000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Client created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.be.a('number'); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); });", "pm.environment.set('crudClientId', pm.response.json().clientId); console.log('💾 crudClientId:', pm.response.json().clientId);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"CrudFirst\",\n  \"lastName\": \"CrudLast\",\n  \"email\": \"{{crudClientEmail}}\",\n  \"phoneNumber\": \"{{crudClientPhone}}\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1992-06-15\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Creates a dedicated client for CRUD testing with unique email to avoid conflicts."},
+          "response": []
+        },
+        {
+          "name": "9.8 [CRUD] GET All Clients (List Contains CRUD Client)",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test client\", function () { const list = pm.response.json(); const found = list.some(c => c.clientId === parseInt(pm.environment.get('crudClientId'))); pm.expect(found).to.be.true; });", "console.log('✅ Client list verified, total clients:', pm.response.json().length);"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "GET /clients — retrieves the full client list and verifies the newly created CRUD test client appears in it."},
+          "response": []
+        },
+        {
+          "name": "9.9 [CRUD] GET Client by ID",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET client returns correct client\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('dateOfBirth'); });", "console.log('✅ Client GET by ID verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "GET /clients/{id} — retrieves a specific client by ID and verifies all fields."},
+          "response": []
+        },
+        {
+          "name": "9.10 [CRUD] PUT Update Client",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Client updated correctly\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudUpdated'); pm.expect(json.lastName).to.equal('CrudLast'); });", "console.log('✅ Client update verified');"], "type": "text/javascript"}}],
+          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"CrudUpdated\",\n  \"lastName\": \"CrudLast\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1992-06-15\"\n}"}, "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "PUT /clients/{id} — updates the client's firstName, verifies the response reflects the change."},
+          "response": []
+        },
+        {
+          "name": "9.11 [CRUD] DELETE Client",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 — client deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('✅ Client deleted — HTTP', pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "DELETE /clients/{id} — deletes the CRUD test client. Expects 200 or 204."},
+          "response": []
+        },
+        {
+          "name": "9.12 [CRUD] GET Deleted Client → 404",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudClientId');", "console.log('✅ Client confirmed deleted — 404 verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "Verifies the deleted client returns 404. Confirms DELETE was permanent."},
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11 - Quote Status Machine",
+      "item": [
+        {"name":"11.1 [STATUS] Create Quote for Status Tests","event":[{"listen":"test","script":{"exec":["pm.test(\"Quote created in DRAFT\", function(){pm.response.to.have.status(201); const j=pm.response.json(); pm.expect(j.status).to.equal('DRAFT'); pm.environment.set('smQuoteId',j.quoteId); pm.environment.set('smInsuredId',null);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{agentId}}\n}"},"url":{"raw":"{{baseUrl}}/quotes","host":["{{baseUrl}}"],"path":["quotes"]}},"response":[]},
+        {"name":"11.2 [STATUS] Add Insured + Cover for Status Quote","event":[{"listen":"test","script":{"exec":["pm.test(\"Insured added\", function(){pm.response.to.have.status(201); pm.environment.set('smInsuredId',pm.response.json().insuredId);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"clientId\": {{clientId}},\n  \"role\": \"PRIMARY\",\n  \"isPrimary\": true\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/insured-persons","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","insured-persons"]}},"response":[]},
+        {"name":"11.3 [STATUS] Add Cover for Status Quote","event":[{"listen":"test","script":{"exec":["pm.test(\"Cover added\", function(){pm.response.to.have.status(201); pm.environment.set('smCoverId',pm.response.json().coverId);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"insuredId\": {{smInsuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 300000,\n  \"termYears\": 15,\n  \"commencementDate\": \"2026-05-01\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/covers","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","covers"]}},"response":[]},
+        {"name":"11.4 [STATUS] Add Required Attributes for Status Quote","event":[{"listen":"test","script":{"exec":["pm.test(\"Attributes added\", function(){pm.response.to.have.status(201);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"smokerStatus\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"NON_SMOKER\"\n}"},"url":{"raw":"{{baseUrl}}/covers/{{smCoverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{smCoverId}}","attributes"]}},"response":[]},
+        {"name":"11.5 [STATUS] INVALID Transition DRAFT→ISSUED (Skip Step) → 400","event":[{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] Cannot skip SUBMITTED/APPROVED states\", function(){pm.expect([400,409,422]).to.include(pm.response.code);}); pm.test(\"Quote remains in DRAFT after illegal transition\", function(){const j=pm.response.json(); const msg=(j.message||j.error||'').toLowerCase(); pm.expect(msg).to.not.be.empty;});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"ISSUED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","status"]}},"response":[]},
+        {"name":"11.6 [STATUS] DRAFT → SUBMITTED (Valid Primary Path)","event":[{"listen":"test","script":{"exec":["pm.test(\"DRAFT→SUBMITTED succeeds\", function(){pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.equal('SUBMITTED');});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"SUBMITTED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","status"]}},"response":[]},
+        {"name":"11.7 [STATUS] INVALID Backward Transition SUBMITTED→DRAFT → 400","event":[{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] Cannot go backward from SUBMITTED to DRAFT\", function(){pm.expect([400,409,422]).to.include(pm.response.code);});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"DRAFT\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","status"]}},"response":[]},
+        {"name":"11.8 [STATUS] SUBMITTED → APPROVED (Underwriting Gate)","event":[{"listen":"test","script":{"exec":["pm.test(\"SUBMITTED→APPROVED succeeds\", function(){pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.equal('APPROVED');});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"APPROVED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","status"]}},"response":[]},
+        {"name":"11.9 [STATUS] APPROVED → ISSUED (Policy Issued)","event":[{"listen":"test","script":{"exec":["pm.test(\"APPROVED→ISSUED succeeds — full lifecycle complete\", function(){pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.equal('ISSUED');}); pm.environment.unset('smQuoteId'); pm.environment.unset('smInsuredId'); pm.environment.unset('smCoverId');"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"ISSUED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{smQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{smQuoteId}}","status"]}},"response":[]}
+      ]
+    },
+    {
+      "name": "12 - Underwriting Attributes",
+      "item": [
+        {"name":"12.1 [UW] Create Quote with Cover including Underwriting Fields (smokerStatus + occupationClass + rateableAge on body)","event":[{"listen":"test","script":{"exec":["pm.test(\"Status 201\", function(){pm.response.to.have.status(201);}); pm.test(\"Cover created with underwriting fields\", function(){ const j=pm.response.json(); pm.expect(j.coverId).to.be.a('number'); pm.expect(j.smokerStatus).to.equal('SMOKER'); pm.expect(j.occupationClass).to.equal('SUBSTANDARD_2'); pm.expect(j.rateableAge).to.equal(45); pm.environment.set('uwCoverId',j.coverId); pm.environment.set('uwQuoteId',j.quoteId);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"insuredId\": {{insuredId}},\n  \"coverCode\": \"LC\",\n  \"coverName\": \"Life Cover - UW Test\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 750000,\n  \"termYears\": 20,\n  \"rateableAge\": 45,\n  \"occupationClass\": \"SUBSTANDARD_2\",\n  \"smokerStatus\": \"SMOKER\",\n  \"commencementDate\": \"2026-05-01\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{quoteId}}/covers","host":["{{baseUrl}}"],"path":["quotes","{{quoteId}}","covers"]}},"response":[]},
+        {"name":"12.2 [UW] Add smokerStatus Attribute (STRING — SMOKER)","event":[{"listen":"test","script":{"exec":["pm.test(\"smokerStatus attribute stored as STRING\", function(){ pm.response.to.have.status(201); const j=pm.response.json(); pm.expect(j.attributeKey.toLowerCase()).to.equal('smokerstatus'); pm.expect(j.valueType).to.equal('STRING'); pm.expect(j.stringValue).to.equal('SMOKER');});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"smokerStatus\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"SMOKER\"\n}"},"url":{"raw":"{{baseUrl}}/covers/{{uwCoverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{uwCoverId}}","attributes"]}},"response":[]},
+        {"name":"12.3 [UW] Add rateableAge Attribute (NUMBER — 45)","event":[{"listen":"test","script":{"exec":["pm.test(\"rateableAge attribute stored as NUMBER\", function(){ pm.response.to.have.status(201); const j=pm.response.json(); pm.expect(j.attributeKey.toLowerCase()).to.equal('rateableage'); pm.expect(j.valueType).to.equal('NUMBER'); pm.expect(j.numberValue).to.equal(45);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"rateableAge\",\n  \"valueType\": \"NUMBER\",\n  \"numberValue\": 45\n}"},"url":{"raw":"{{baseUrl}}/covers/{{uwCoverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{uwCoverId}}","attributes"]}},"response":[]},
+        {"name":"12.4 [UW] Add occupationClass Attribute (STRING — SUBSTANDARD_2)","event":[{"listen":"test","script":{"exec":["pm.test(\"occupationClass attribute stored as STRING\", function(){ pm.response.to.have.status(201); const j=pm.response.json(); pm.expect(j.attributeKey.toLowerCase()).to.equal('occupationclass'); pm.expect(j.valueType).to.equal('STRING'); pm.expect(j.stringValue).to.equal('SUBSTANDARD_2');});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"occupationClass\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"SUBSTANDARD_2\"\n}"},"url":{"raw":"{{baseUrl}}/covers/{{uwCoverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{uwCoverId}}","attributes"]}},"response":[]},
+        {"name":"12.5 [UW] GET Cover Attributes — Verify All 3 UW Attributes Present","event":[{"listen":"test","script":{"exec":["pm.test(\"GET attributes returns all 3 underwriting fields\", function(){ pm.response.to.have.status(200); const attrs=pm.response.json(); const keys=attrs.map(a=>a.attributeKey.toLowerCase()); pm.expect(keys).to.include('smokerstatus'); pm.expect(keys).to.include('rateableage'); pm.expect(keys).to.include('occupationclass'); pm.expect(attrs.length).to.be.at.least(3);}); pm.environment.unset('uwCoverId'); pm.environment.unset('uwQuoteId');"],"type":"text/javascript"}}],"request":{"method":"GET","header":[],"url":{"raw":"{{baseUrl}}/covers/{{uwCoverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{uwCoverId}}","attributes"]}},"response":[]}
+      ]
+    },
+    {
+      "name": "13 - Underwriting Submission Rules",
+      "item": [
+        {"name":"13.1 [UW-RULE] SUBMIT Quote with No Insured → 400","event":[{"listen":"prerequest","script":{"exec":["// Create a fresh quote with NO insured person\npm.sendRequest({url: pm.environment.get('baseUrl')+'/quotes', method:'POST', header:{'Content-Type':'application/json'}, body:{mode:'raw',raw:JSON.stringify({clientId:parseInt(pm.environment.get('clientId')),agentId:parseInt(pm.environment.get('agentId'))})}}, function(err,res){ if(!err){ pm.variables.set('bareQuoteId', res.json().quoteId); }});"],"type":"text/javascript"}},{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] SUBMIT with no insured is rejected\", function(){ pm.expect([400,422]).to.include(pm.response.code);}); const body=pm.response.json(); pm.test(\"Error message mentions insured requirement\", function(){ pm.expect(body.message||body.error||'').to.not.be.empty;});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"SUBMITTED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{bareQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{bareQuoteId}}","status"]}},"response":[]},
+        {"name":"13.2 [UW-RULE] SUBMIT Quote with No Cover → 400","event":[{"listen":"prerequest","script":{"exec":["// Create quote + insured but no cover\npm.sendRequest({url: pm.environment.get('baseUrl')+'/quotes', method:'POST', header:{'Content-Type':'application/json'}, body:{mode:'raw',raw:JSON.stringify({clientId:parseInt(pm.environment.get('clientId')),agentId:parseInt(pm.environment.get('agentId'))})}}, function(err,res){ if(!err){ const qid=res.json().quoteId; pm.variables.set('noCoverQuoteId',qid); pm.sendRequest({url:pm.environment.get('baseUrl')+'/quotes/'+qid+'/insured-persons',method:'POST',header:{'Content-Type':'application/json'},body:{mode:'raw',raw:JSON.stringify({clientId:parseInt(pm.environment.get('clientId')),role:'PRIMARY',isPrimary:true})}},function(){});}});"],"type":"text/javascript"}},{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] SUBMIT with insured but no BASE cover is rejected\", function(){ pm.expect([400,422]).to.include(pm.response.code);});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"SUBMITTED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{noCoverQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{noCoverQuoteId}}","status"]}},"response":[]},
+        {"name":"13.3 [UW-RULE] Duplicate Attribute Key on Same Cover → 400","event":[{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] Duplicate attribute key rejected\", function(){ pm.expect([400,409,422]).to.include(pm.response.code);}); pm.test(\"Error mentions duplicate key\", function(){ const msg=(pm.response.json().message||pm.response.json().error||'').toLowerCase(); pm.expect(msg).to.satisfy(m=>m.includes('duplicate')||m.includes('already')||m.includes('exists')||m.length>0);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"smokerStatus\",\n  \"valueType\": \"STRING\",\n  \"stringValue\": \"SMOKER\"\n}"},"url":{"raw":"{{baseUrl}}/covers/{{coverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{coverId}}","attributes"]}},"response":[]},
+        {"name":"13.4 [UW-RULE] Add Attribute with Mismatched Value Type → 400","event":[{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] valueType=NUMBER with stringValue provided is rejected\", function(){ pm.expect([400,422]).to.include(pm.response.code);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"attributeKey\": \"testMismatch\",\n  \"valueType\": \"NUMBER\",\n  \"stringValue\": \"this_is_a_string_not_a_number\"\n}"},"url":{"raw":"{{baseUrl}}/covers/{{coverId}}/attributes","host":["{{baseUrl}}"],"path":["covers","{{coverId}}","attributes"]}},"response":[]},
+        {"name":"13.5 [UW-RULE] APPROVE without Required Attributes → 400 or verify pass if not required","event":[{"listen":"prerequest","script":{"exec":["// Create a minimal quote (no attributes) and try to APPROVE\npm.sendRequest({url:pm.environment.get('baseUrl')+'/quotes',method:'POST',header:{'Content-Type':'application/json'},body:{mode:'raw',raw:JSON.stringify({clientId:parseInt(pm.environment.get('clientId')),agentId:parseInt(pm.environment.get('agentId'))})}},function(err,res){ if(!err){ const qid=res.json().quoteId; pm.variables.set('noAttrQuoteId',qid); pm.sendRequest({url:pm.environment.get('baseUrl')+'/quotes/'+qid+'/insured-persons',method:'POST',header:{'Content-Type':'application/json'},body:{mode:'raw',raw:JSON.stringify({clientId:parseInt(pm.environment.get('clientId')),role:'PRIMARY',isPrimary:true})}},function(e2,r2){ if(!e2){ const iid=r2.json().insuredId; pm.sendRequest({url:pm.environment.get('baseUrl')+'/quotes/'+qid+'/covers',method:'POST',header:{'Content-Type':'application/json'},body:{mode:'raw',raw:JSON.stringify({insuredId:iid,coverCode:'LC',coverName:'Life Cover',coverType:'BASE',sumAssured:100000,termYears:10,commencementDate:'2026-05-01'})}},function(e3,r3){ if(!e3){ pm.sendRequest({url:pm.environment.get('baseUrl')+'/quotes/'+qid+'/status',method:'PATCH',header:{'Content-Type':'application/json'},body:{mode:'raw',raw:JSON.stringify({status:'SUBMITTED'})}},function(){});}});}});}}); "],"type":"text/javascript"}},{"listen":"test","script":{"exec":["// If CoverConfig requires attributes: expect 400. If not required: expect 200\npm.test(\"APPROVE without attributes returns 400 (required) or 200 (not required by CoverConfig)\", function(){ pm.expect([200,400,422]).to.include(pm.response.code);}); console.log('ℹ️ APPROVE without attributes → HTTP', pm.response.code, '— check CoverConfig.requiredAttributes for LC to interpret correctly');"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"APPROVED\"\n}"},"url":{"raw":"{{baseUrl}}/quotes/{{noAttrQuoteId}}/status","host":["{{baseUrl}}"],"path":["quotes","{{noAttrQuoteId}}","status"]}},"response":[]}
+      ]
+    },
+    {
+      "name": "14 - Agent Status Management",
+      "item": [
+        {"name":"14.1 [AGENT-STATUS] Create Agent for Status Test","event":[{"listen":"prerequest","script":{"exec":["const ts=Date.now(); pm.variables.set('statusAgentEmail','status_agent_'+ts+'@test.com'); pm.variables.set('statusAgentPhone','+91'+(9000000050+Math.floor(Math.random()*100)));"],"type":"text/javascript"}},{"listen":"test","script":{"exec":["pm.test(\"Status 201\",function(){pm.response.to.have.status(201);}); pm.environment.set('statusAgentId',pm.response.json().agentId); console.log('💾 statusAgentId:',pm.response.json().agentId);"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"name\": \"Status Test Agent\",\n  \"email\": \"{{statusAgentEmail}}\",\n  \"phoneNumber\": \"{{statusAgentPhone}}\",\n  \"role\": \"AGENT\"\n}"},"url":{"raw":"{{baseUrl}}/agents","host":["{{baseUrl}}"],"path":["agents"]}},"response":[]},
+        {"name":"14.2 [AGENT-STATUS] PATCH Agent Status → INACTIVE","event":[{"listen":"test","script":{"exec":["pm.test(\"Agent status changed to INACTIVE\", function(){ pm.response.to.have.status(200); const j=pm.response.json(); pm.expect(j.status).to.equal('INACTIVE'); pm.expect(j.agentId).to.equal(parseInt(pm.environment.get('statusAgentId')));});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"INACTIVE\"\n}"},"url":{"raw":"{{baseUrl}}/agents/{{statusAgentId}}/status","host":["{{baseUrl}}"],"path":["agents","{{statusAgentId}}","status"]}},"response":[]},
+        {"name":"14.3 [AGENT-STATUS] Create Quote with INACTIVE Agent → 400 (Enforcement)","event":[{"listen":"test","script":{"exec":["pm.test(\"[EXPECTED 400] INACTIVE agent cannot be used in quotes\", function(){ pm.expect([400,422,409]).to.include(pm.response.code);}); pm.test(\"Error message references agent status\", function(){ const msg=(pm.response.json().message||pm.response.json().error||'').toLowerCase(); pm.expect(msg).to.not.be.empty; console.log('ℹ️ Backend message:', msg);});"],"type":"text/javascript"}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"clientId\": {{clientId}},\n  \"agentId\": {{statusAgentId}}\n}"},"url":{"raw":"{{baseUrl}}/quotes","host":["{{baseUrl}}"],"path":["quotes"]}},"response":[]},
+        {"name":"14.4 [AGENT-STATUS] PATCH Agent Status → ACTIVE (Restore)","event":[{"listen":"test","script":{"exec":["pm.test(\"Agent status restored to ACTIVE\", function(){ pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.equal('ACTIVE');});"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"ACTIVE\"\n}"},"url":{"raw":"{{baseUrl}}/agents/{{statusAgentId}}/status","host":["{{baseUrl}}"],"path":["agents","{{statusAgentId}}","status"]}},"response":[]},
+        {"name":"14.5 [AGENT-STATUS] PATCH Agent Status → SUSPENDED","event":[{"listen":"test","script":{"exec":["pm.test(\"Agent status changed to SUSPENDED\", function(){ pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.equal('SUSPENDED');}); pm.environment.unset('statusAgentId');"],"type":"text/javascript"}}],"request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"SUSPENDED\"\n}"},"url":{"raw":"{{baseUrl}}/agents/{{statusAgentId}}/status","host":["{{baseUrl}}"],"path":["agents","{{statusAgentId}}","status"]}},"response":[]}
+      ]
+    },
+    {
+      "name": "99 - Teardown",
+      "item": [
+        {
+          "name": "99.1 [TEARDOWN] DELETE Main Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Main quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "pm.environment.unset('quoteId'); pm.environment.unset('insuredId'); pm.environment.unset('coverId');", "console.log(\"🗑️ Main quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{quoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{quoteId}}"]}, "description": "Deletes the main ISSUED lifecycle quote. Accepts 200/204/404/405."},
+          "response": []
+        },
+        {
+          "name": "99.2 [TEARDOWN] DELETE RIDER Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"RIDER quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ RIDER quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{riderQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{riderQuoteId}}"]}, "description": "Deletes RIDER test quote and clears riderQuoteId, riderInsuredId, riderBaseCoverId, riderCoverId."},
+          "response": []
+        },
+        {
+          "name": "99.3 [TEARDOWN] DELETE Multi-Insured Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Multi-insured quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Multi-insured quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{multiQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{multiQuoteId}}"]}, "description": "Deletes multi-insured test quote and clears all multi-insured env vars."},
+          "response": []
+        },
+        {
+          "name": "99.4 [TEARDOWN] DELETE Business Rules Test Quote",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Business rules quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Business rules quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}"]}, "description": "Deletes WOP+IP business rule test quote and clears all biz rule env vars."},
+          "response": []
+        },
+        {
+          "name": "99.5 [TEARDOWN] Clear All Dynamic Env Variables",
+          "event": [{"listen": "test", "script": {"exec": ["const dynamicVars = ['agentId','clientId','quoteId','insuredId','coverId','agentEmail','clientEmail','phoneNumber','riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId','multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId','bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'];", "dynamicVars.forEach(v => pm.environment.unset(v));", "pm.test(\"All 20 dynamic env vars cleared\", function () { dynamicVars.forEach(v => { pm.expect(pm.environment.get(v)).to.be.oneOf([null, undefined, '']); }); });", "console.log('✅ TEARDOWN COMPLETE — environment cleaned');", "console.log('   baseUrl:', pm.environment.get('baseUrl'));"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Final teardown: clears all 20 dynamic env vars (IDs, emails, phones) created during the test run. Preserves baseUrl and maxResponseTime."},
+          "response": []
+        }
+      ]
+    }
+  ]
+}

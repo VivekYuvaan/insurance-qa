@@ -112,4 +112,117 @@ jobs:
           echo "| **Iterations** | 5 (from test-data.csv) |" >> $GITHUB_STEP_SUMMARY
           echo "| **Folders** | 00-Setup + 01-Quote Lifecycle |" >> $GITHUB_STEP_SUMMARY
           echo "| **CSV Columns** | clientName, coverCode, sumInsured, premium, attributeName, attributeValue |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Report** | Download from Artifacts → data-driven-test-report |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Report** | Download from Artifacts → data-driven-test-report |" >> $GITHUB_STEP_SUMMARY
+
+  smoke-tests-v2:
+    name: 🚀 V2 Full Suite (15 Folders)
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman and reporters
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run V2 Full Suite
+        run: |
+          npx newman run collections/insurance-enterprise-v2-complete.json \
+            -e collections/insurance-env.json \
+            --folder "00 - Setup" \
+            --folder "01 - Quote Lifecycle" \
+            --folder "02 - Negative Tests" \
+            --folder "03 - Contract Tests" \
+            --folder "04 - Cover Scenarios" \
+            --folder "05 - Multi-Insured Scenarios" \
+            --folder "06 - Immutability Tests (ISSUED Quote is Locked)" \
+            --folder "07 - Business Rules" \
+            --folder "08 - Security Tests" \
+            --folder "09 - Agent & Client CRUD" \
+            --folder "10 - Performance Benchmarks" \
+            --folder "11 - Quote Status Machine" \
+            --folder "12 - Underwriting Attributes" \
+            --folder "13 - Underwriting Submission Rules" \
+            --folder "14 - Agent Status Management" \
+            --folder "99 - Teardown" \
+            -r cli,htmlextra \
+            --reporter-htmlextra-export reports/v2-smoke-report.html \
+            --bail
+
+      - name: Upload V2 Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-smoke-test-report
+          path: reports/v2-smoke-report.html
+
+      - name: V2 Summary
+        if: always()
+        run: |
+          echo "## 🆕 V2 Collection Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Detail |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Collection** | insurance-enterprise-v2-complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Folders** | 15 active + 99-Teardown |" >> $GITHUB_STEP_SUMMARY
+          echo "| **New Folders** | 11-Status Machine, 12-UW Attributes, 13-UW Rules, 14-Agent Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Data-Driven** | CSV-driven client/cover/attribute bodies |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Report** | Download from Artifacts → v2-smoke-test-report |" >> $GITHUB_STEP_SUMMARY
+
+  data-driven-v2:
+    name: 📊 V2 Data-Driven (30 CSV Rows)
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman and reporters
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run V2 Data-Driven Tests (30 rows — all UW combinations)
+        run: |
+          npx newman run collections/insurance-enterprise-v2-complete.json \
+            -e collections/insurance-env.json \
+            --iteration-data data/test-data-v2.csv \
+            --folder "00 - Setup" \
+            --folder "01 - Quote Lifecycle" \
+            -r cli,htmlextra \
+            --reporter-htmlextra-export reports/v2-data-driven-report.html \
+            --bail
+
+      - name: Upload V2 Data-Driven Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-data-driven-report
+          path: reports/v2-data-driven-report.html
+
+      - name: V2 Data-Driven Summary
+        if: always()
+        run: |
+          echo "## 📊 V2 Data-Driven Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Detail |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Rows** | 30 (all smoker/occupation/age combinations) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **SmokerStatus** | NON_SMOKER, SMOKER, EX_SMOKER |" >> $GITHUB_STEP_SUMMARY
+          echo "| **OccupationClass** | STANDARD, SUBSTANDARD_1, SUBSTANDARD_2, HAZARDOUS |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ages** | 25, 30, 35, 40, 45, 50, 55, 60 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Report** | Download from Artifacts → v2-data-driven-report |" >> $GITHUB_STEP_SUMMARY
