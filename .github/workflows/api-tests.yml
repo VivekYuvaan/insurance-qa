@@ -37,6 +37,11 @@ jobs:
             --folder "04 - Cover Scenarios" \
             --folder "05 - Multi-Insured Scenarios" \
             --folder "06 - Immutability Tests (ISSUED Quote is Locked)" \
+            --folder "07 - Business Rules" \
+            --folder "08 - Security Tests" \
+            --folder "09 - Agent & Client CRUD" \
+            --folder "10 - Performance Benchmarks" \
+            --folder "99 - Teardown" \
             -r cli,htmlextra \
             --reporter-htmlextra-export reports/smoke-report.html \
             --bail
