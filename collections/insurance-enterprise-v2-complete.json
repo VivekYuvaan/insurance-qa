@@ -246,7 +246,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\",\n  \"gender\": \"{{gender}}\",\n  \"dateOfBirth\": \"{{dateOfBirth}}\",\n  \"email\": \"{{clientEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"smokerStatus\": \"{{clientSmokerStatus}}\",\n  \"occupation\": \"{{occupation}}\",\n  \"clientType\": \"{{clientType}}\",\n  \"idType\": \"{{idType}}\",\n  \"agentId\": {{agentId}},\n  \"addresses\": [\n    {\n      \"line1\": \"{{addressLine1}}\",\n      \"city\": \"{{addressCity}}\",\n      \"state\": \"{{addressState}}\",\n      \"country\": \"{{addressCountry}}\",\n      \"postalCode\": \"{{postalCode}}\",\n      \"addressType\": \"PERMANENT\",\n      \"isMainAddress\": true\n    }\n  ]\n}"
+              "raw": "{\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"{{dateOfBirth}}\",\n  \"email\": \"{{clientEmail}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"agentId\": {{agentId}},\n  \"addresses\": [\n    {\n      \"line1\": \"{{addressLine1}}\",\n      \"city\": \"{{addressCity}}\",\n      \"state\": \"{{addressState}}\",\n      \"country\": \"{{addressCountry}}\",\n      \"postalCode\": \"{{postalCode}}\",\n      \"addressType\": \"PERMANENT\",\n      \"isMainAddress\": true\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/clients",
