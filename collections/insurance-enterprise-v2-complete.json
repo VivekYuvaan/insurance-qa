@@ -3064,7 +3064,16 @@
           "    const random = Math.floor(Math.random() * 1000);\r",
           "    return \\`\\${prefix}_\\${timestamp}_\\${random}\\`;\r",
           "}\r",
-          "`);"
+          "`);",
+          "// === GLOBAL CSV FALLBACKS ===",
+          "const sb=(k,d)=>{const v=pm.variables.get(k);if(!v||String(v).includes('{'))pm.variables.set(k,d);};",
+          "sb(\"firstName\",\"Vivek\"); sb(\"lastName\",\"Kumar\"); sb(\"dateOfBirth\",\"1985-06-15\");",
+          "sb(\"addressLine1\",\"123 Main Street\"); sb(\"addressCity\",\"Mumbai\"); sb(\"addressState\",\"MH\");",
+          "sb(\"addressCountry\",\"India\"); sb(\"postalCode\",\"400001\");",
+          "sb(\"coverCode\",\"LC\"); sb(\"coverName\",\"Life Cover\"); sb(\"coverType\",\"BASE\");",
+          "sb(\"sumAssured\",\"500000\"); sb(\"termYears\",\"20\"); sb(\"commencementDate\",\"2026-05-01\");",
+          "sb(\"rateableAge\",\"30\"); sb(\"occupationClass\",\"STANDARD\"); sb(\"coverSmokerStatus\",\"NON_SMOKER\");",
+          "sb(\"smokerStatusValue\",\"NON_SMOKER\"); sb(\"rateableAgeValue\",\"30\"); sb(\"occupationClassValue\",\"STANDARD\");"
         ]
       }
     },
