@@ -22,16 +22,16 @@
                   "// If this fails, Newman --bail will abort the entire suite immediately.",
                   "pm.test(\"API is reachable and responding\", function () {",
                   "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204],",
-                  "        `API unreachable — got HTTP ${pm.response.code}. Check baseUrl: ${pm.request.url.toString()}`",
+                  "        `API unreachable ? got HTTP ${pm.response.code}. Check baseUrl: ${pm.request.url.toString()}`",
                   "    );",
                   "});",
                   "",
                   "// Cold start warning for Render free tier",
                   "if (pm.response.responseTime > 5000) {",
-                  "    console.warn('⚠️ COLD START DETECTED: Response took', pm.response.responseTime + 'ms.');",
-                  "    console.warn('⚠️ Render free tier spins down after inactivity. Consider running a warm-up request first.');",
+                  "    console.warn('?? COLD START DETECTED: Response took', pm.response.responseTime + 'ms.');",
+                  "    console.warn('?? Render free tier spins down after inactivity. Consider running a warm-up request first.');",
                   "} else {",
-                  "    console.log('✅ API is warm and reachable in', pm.response.responseTime + 'ms → baseUrl:', pm.request.url.toString());",
+                  "    console.log('? API is warm and reachable in', pm.response.responseTime + 'ms ? baseUrl:', pm.request.url.toString());",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -46,7 +46,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["agents"]
             },
-            "description": "Pre-flight health check — the very first request in the suite. Calls GET /agents as a lightweight readiness probe. If the API is down, cold-starting, or unreachable, this fails fast and --bail aborts the run immediately, preventing 40+ misleading failures downstream."
+            "description": "Pre-flight health check ? the very first request in the suite. Calls GET /agents as a lightweight readiness probe. If the API is down, cold-starting, or unreachable, this fails fast and --bail aborts the run immediately, preventing 40+ misleading failures downstream."
           },
           "response": []
         },
@@ -96,7 +96,7 @@
                   "    pm.expect(pm.response.responseTime).to.be.below(maxTime);",
                   "});",
                   "",
-                  "console.log(\"⏱ Response time:\", pm.response.responseTime, \"ms\");",
+                  "console.log(\"? Response time:\", pm.response.responseTime, \"ms\");",
                   "",
                   "",
                   "// ==============================",
@@ -106,7 +106,7 @@
                   "try {",
                   "    json = pm.response.json();",
                   "} catch (e) {",
-                  "    console.error(\"❌ Failed to parse JSON response\");",
+                  "    console.error(\"? Failed to parse JSON response\");",
                   "    throw e;",
                   "}",
                   "",
@@ -128,7 +128,7 @@
                   "// 5. SAVE TEST DATA",
                   "// ==============================",
                   "pm.environment.set(\"agentId\", json.agentId);",
-                  "console.log(\"💾 Saved agentId:\", json.agentId);",
+                  "console.log(\"?? Saved agentId:\", json.agentId);",
                   "",
                   "",
                   "// ==============================",
@@ -635,7 +635,7 @@
           "response": []
         },
         {
-          "name": "1.10  [SMOKE]  Submit Quote (DRAFT → SUBMITTED)",
+          "name": "1.10  [SMOKE]  Submit Quote (DRAFT ? SUBMITTED)",
           "event": [
             {
               "listen": "test",
@@ -684,7 +684,7 @@
           "response": []
         },
         {
-          "name": "1.11  [SMOKE]  Approve Quote (SUBMITTED → APPROVED)",
+          "name": "1.11  [SMOKE]  Approve Quote (SUBMITTED ? APPROVED)",
           "event": [
             {
               "listen": "test",
@@ -743,7 +743,7 @@
           "response": []
         },
         {
-          "name": "1.12  [SMOKE]  Issue Quote (APPROVED → ISSUED)",
+          "name": "1.12  [SMOKE]  Issue Quote (APPROVED ? ISSUED)",
           "event": [
             {
               "listen": "test",
@@ -809,7 +809,7 @@
                   "try {",
                   "    json = pm.response.json();",
                   "} catch (e) {",
-                  "    console.error(\"❌ Failed to parse JSON response\");",
+                  "    console.error(\"? Failed to parse JSON response\");",
                   "    throw e;",
                   "}",
                   "",
@@ -865,7 +865,7 @@
                   "    pm.expect(age.numberValue).to.equal(30);",
                   "});",
                   "",
-                  "console.log(\"✅ Full data persistence verified for quoteId:\", json.quoteId);"
+                  "console.log(\"? Full data persistence verified for quoteId:\", json.quoteId);"
                 ],
                 "type": "text/javascript"
               }
@@ -1335,15 +1335,15 @@
           "response": []
         },
         {
-          "name": "5.2 [NEGATIVE] Illegal Backward State Transition ISSUED → SUBMITTED (Expect 400)",
+          "name": "5.2 [NEGATIVE] Illegal Backward State Transition ISSUED ? SUBMITTED (Expect 400)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "// After the happy path, the quote is in ISSUED (final) state.",
-                  "// Attempting to transition ISSUED → SUBMITTED is an illegal backward move.",
-                  "// Backend state machine: DRAFT→SUBMITTED→APPROVED→ISSUED (locked)",
+                  "// Attempting to transition ISSUED ? SUBMITTED is an illegal backward move.",
+                  "// Backend state machine: DRAFTSUBMITTEDAPPROVEDISSUED (locked)",
                   "pm.test(\"Status code is 400 for illegal backward state transition\", function () {",
                   "    pm.response.to.have.status(400);",
                   "});",
@@ -1387,7 +1387,7 @@
                 "status"
               ]
             },
-            "description": "Verifies that the state machine rejects illegal backward transitions. After the happy path, the quote is ISSUED (locked final state). Attempting ISSUED → SUBMITTED must return 400 with a descriptive error."
+            "description": "Verifies that the state machine rejects illegal backward transitions. After the happy path, the quote is ISSUED (locked final state). Attempting ISSUED ? SUBMITTED must return 400 with a descriptive error."
           },
           "response": []
         }
@@ -1624,7 +1624,7 @@
                   "",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"riderQuoteId\", json.quoteId);",
-                  "console.log(\"💾 Saved riderQuoteId:\", json.quoteId);"
+                  "console.log(\"?? Saved riderQuoteId:\", json.quoteId);"
                 ],
                 "type": "text/javascript"
               }
@@ -1670,7 +1670,7 @@
                   "",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"riderInsuredId\", json.insuredId);",
-                  "console.log(\"💾 Saved riderInsuredId:\", json.insuredId);"
+                  "console.log(\"?? Saved riderInsuredId:\", json.insuredId);"
                 ],
                 "type": "text/javascript"
               }
@@ -1718,7 +1718,7 @@
                   "",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"riderBaseCoverId\", json.coverId);",
-                  "console.log(\"💾 Saved riderBaseCoverId:\", json.coverId);"
+                  "console.log(\"?? Saved riderBaseCoverId:\", json.coverId);"
                 ],
                 "type": "text/javascript"
               }
@@ -1769,8 +1769,8 @@
                   "",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"riderCoverId\", json.coverId);",
-                  "console.log(\"💾 Saved riderCoverId:\", json.coverId);",
-                  "console.log(\"✅ RIDER cover attached to parentCoverId:\", json.parentCoverId);"
+                  "console.log(\"?? Saved riderCoverId:\", json.coverId);",
+                  "console.log(\"? RIDER cover attached to parentCoverId:\", json.parentCoverId);"
                 ],
                 "type": "text/javascript"
               }
@@ -1825,7 +1825,7 @@
                   "            child.coverId === parseInt(pm.environment.get('riderCoverId'))",
                   "        );",
                   "    pm.expect(hasRiderChild).to.be.true;",
-                  "    console.log(\"✅ RIDER cover hierarchy verified in cover tree\");",
+                  "    console.log(\"? RIDER cover hierarchy verified in cover tree\");",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1840,7 +1840,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["quotes", "{{riderQuoteId}}", "cover-tree"]
             },
-            "description": "Uses the cover-tree endpoint (GET /quotes/{id}/cover-tree) to verify the BASE→RIDER parent-child hierarchy is correctly stored. This is the only way to confirm the parentCoverId relationship is persisted and returned in tree form."
+            "description": "Uses the cover-tree endpoint (GET /quotes/{id}/cover-tree) to verify the BASERIDER parent-child hierarchy is correctly stored. This is the only way to confirm the parentCoverId relationship is persisted and returned in tree form."
           },
           "response": []
         },
@@ -1910,7 +1910,7 @@
                   "    pm.expect(json.numberValue).to.be.oneOf([null, undefined, 0]);",
                   "});",
                   "",
-                  "console.log(\"✅ BOOLEAN attribute type verified\");"
+                  "console.log(\"? BOOLEAN attribute type verified\");"
                 ],
                 "type": "text/javascript"
               }
@@ -1933,7 +1933,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["covers", "{{riderBaseCoverId}}", "attributes"]
             },
-            "description": "Tests the BOOLEAN valueType for cover attributes. Only booleanValue must be set (stringValue and numberValue must be null/absent). This is the only BOOLEAN type test in the entire suite — previously STRING and NUMBER were the only types exercised."
+            "description": "Tests the BOOLEAN valueType for cover attributes. Only booleanValue must be set (stringValue and numberValue must be null/absent). This is the only BOOLEAN type test in the entire suite ? previously STRING and NUMBER were the only types exercised."
           },
           "response": []
         },
@@ -2049,7 +2049,7 @@
                   "});",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"multiQuoteId\", json.quoteId);",
-                  "console.log(\"💾 Saved multiQuoteId:\", json.quoteId);"
+                  "console.log(\"?? Saved multiQuoteId:\", json.quoteId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2089,7 +2089,7 @@
                   "});",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"multiPrimaryInsuredId\", json.insuredId);",
-                  "console.log(\"💾 Saved multiPrimaryInsuredId:\", json.insuredId);"
+                  "console.log(\"?? Saved multiPrimaryInsuredId:\", json.insuredId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2131,7 +2131,7 @@
                   "});",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"multiChildInsuredId\", json.insuredId);",
-                  "console.log(\"💾 Saved multiChildInsuredId:\", json.insuredId);"
+                  "console.log(\"?? Saved multiChildInsuredId:\", json.insuredId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2171,7 +2171,7 @@
                   "});",
                   "const json = pm.response.json();",
                   "pm.environment.set(\"multiSecondaryInsuredId\", json.insuredId);",
-                  "console.log(\"💾 Saved multiSecondaryInsuredId:\", json.insuredId);"
+                  "console.log(\"?? Saved multiSecondaryInsuredId:\", json.insuredId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2230,7 +2230,7 @@
                   "    pm.expect(uniqueIds.size).to.equal(ids.length);",
                   "});",
                   "",
-                  "console.log(\"✅ Multi-insured scenario verified - 3 persons with distinct roles\");"
+                  "console.log(\"? Multi-insured scenario verified - 3 persons with distinct roles\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2269,7 +2269,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ Duplicate PRIMARY insured correctly rejected\");"
+                  "console.log(\"? Duplicate PRIMARY insured correctly rejected\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2303,9 +2303,9 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// An ISSUED quote is a terminal state — no new covers can be added.",
+                  "// An ISSUED quote is a terminal state ? no new covers can be added.",
                   "// Backend should reject with 400 (invalid state) or 409 (conflict).",
-                  "pm.test(\"Status code is 400 or 409 — ISSUED quote rejects new covers\", function () {",
+                  "pm.test(\"Status code is 400 or 409 ? ISSUED quote rejects new covers\", function () {",
                   "    pm.expect([400, 409]).to.include(pm.response.code);",
                   "});",
                   "",
@@ -2318,7 +2318,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ ISSUED quote correctly rejected cover addition\");"
+                  "console.log(\"? ISSUED quote correctly rejected cover addition\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2347,7 +2347,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 400 or 409 — ISSUED quote rejects new insured persons\", function () {",
+                  "pm.test(\"Status code is 400 or 409 ? ISSUED quote rejects new insured persons\", function () {",
                   "    pm.expect([400, 409]).to.include(pm.response.code);",
                   "});",
                   "",
@@ -2360,7 +2360,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ ISSUED quote correctly rejected insured person addition\");"
+                  "console.log(\"? ISSUED quote correctly rejected insured person addition\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2391,7 +2391,7 @@
                 "exec": [
                   "// Covers on an ISSUED quote should also be locked.",
                   "// Adding a new attribute to a cover that belongs to an ISSUED quote must be rejected.",
-                  "pm.test(\"Status code is 400 or 409 — cover on ISSUED quote rejects new attributes\", function () {",
+                  "pm.test(\"Status code is 400 or 409 ? cover on ISSUED quote rejects new attributes\", function () {",
                   "    pm.expect([400, 409]).to.include(pm.response.code);",
                   "});",
                   "",
@@ -2404,7 +2404,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ Cover on ISSUED quote correctly rejected attribute addition\");"
+                  "console.log(\"? Cover on ISSUED quote correctly rejected attribute addition\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2434,7 +2434,7 @@
               "script": {
                 "exec": [
                   "// PUT /covers/{id} to update financial fields should also be locked on ISSUED quotes.",
-                  "pm.test(\"Status code is 400 or 409 — cover update rejected on ISSUED quote\", function () {",
+                  "pm.test(\"Status code is 400 or 409 ? cover update rejected on ISSUED quote\", function () {",
                   "    pm.expect([400, 409]).to.include(pm.response.code);",
                   "});",
                   "",
@@ -2447,7 +2447,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ Cover update on ISSUED quote correctly rejected\");"
+                  "console.log(\"? Cover update on ISSUED quote correctly rejected\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2470,14 +2470,14 @@
           "response": []
         },
         {
-          "name": "6.5 [IMMUTABILITY] Transition ISSUED → APPROVED (Backward, Expect 400)",
+          "name": "6.5 [IMMUTABILITY] Transition ISSUED ? APPROVED (Backward, Expect 400)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "// ISSUED is the terminal state. Any backward or lateral transition must be rejected.",
-                  "// Attempting ISSUED → APPROVED (backward step) should return 400.",
+                  "// Attempting ISSUED ? APPROVED (backward step) should return 400.",
                   "pm.test(\"Status code is 400 for backward transition from ISSUED\", function () {",
                   "    pm.response.to.have.status(400);",
                   "});",
@@ -2491,7 +2491,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ Backward transition from ISSUED correctly rejected\");"
+                  "console.log(\"? Backward transition from ISSUED correctly rejected\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2509,7 +2509,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["quotes", "{{quoteId}}", "status"]
             },
-            "description": "Attempts ISSUED → APPROVED (backward transition). The state machine enforces DRAFT→SUBMITTED→APPROVED→ISSUED as a one-way flow. Any backward or lateral transition from ISSUED must be rejected with 400."
+            "description": "Attempts ISSUED ? APPROVED (backward transition). The state machine enforces DRAFTSUBMITTEDAPPROVEDISSUED as a one-way flow. Any backward or lateral transition from ISSUED must be rejected with 400."
           },
           "response": []
         }
@@ -2528,7 +2528,7 @@
                   "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
                   "pm.test(\"Quote created in DRAFT\", function () { pm.expect(pm.response.json().status).to.equal('DRAFT'); });",
                   "pm.environment.set(\"bizRuleQuoteId\", pm.response.json().quoteId);",
-                  "console.log(\"💾 bizRuleQuoteId:\", pm.response.json().quoteId);"
+                  "console.log(\"?? bizRuleQuoteId:\", pm.response.json().quoteId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2552,7 +2552,7 @@
                 "exec": [
                   "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
                   "pm.environment.set(\"bizRuleInsuredId\", pm.response.json().insuredId);",
-                  "console.log(\"💾 bizRuleInsuredId:\", pm.response.json().insuredId);"
+                  "console.log(\"?? bizRuleInsuredId:\", pm.response.json().insuredId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2568,7 +2568,7 @@
           "response": []
         },
         {
-          "name": "7.3 [BIZ-RULE] Add IP Cover (Income Protection — requires WOP)",
+          "name": "7.3 [BIZ-RULE] Add IP Cover (Income Protection ? requires WOP)",
           "event": [
             {
               "listen": "test",
@@ -2581,7 +2581,7 @@
                   "    pm.expect(json.coverType).to.equal('BASE');",
                   "});",
                   "pm.environment.set(\"bizRuleIPCoverId\", pm.response.json().coverId);",
-                  "console.log(\"💾 bizRuleIPCoverId:\", pm.response.json().coverId);"
+                  "console.log(\"?? bizRuleIPCoverId:\", pm.response.json().coverId);"
                 ],
                 "type": "text/javascript"
               }
@@ -2595,12 +2595,12 @@
               "raw": "{\n  \"insuredId\": {{bizRuleInsuredId}},\n  \"coverCode\": \"IP\",\n  \"coverName\": \"Income Protection\",\n  \"coverType\": \"BASE\",\n  \"sumAssured\": 500000,\n  \"commencementDate\": \"2026-04-20\"\n}"
             },
             "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/covers", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "covers"]},
-            "description": "Adds an IP (Income Protection) BASE cover. Under backend business rules, any quote with an IP cover MUST also have a WOP (Waiver of Premium) RIDER cover — otherwise SUBMIT is rejected."
+            "description": "Adds an IP (Income Protection) BASE cover. Under backend business rules, any quote with an IP cover MUST also have a WOP (Waiver of Premium) RIDER cover ? otherwise SUBMIT is rejected."
           },
           "response": []
         },
         {
-          "name": "7.4 [BIZ-RULE] SUBMIT Without WOP — Expect 400 (Rule Enforced)",
+          "name": "7.4 [BIZ-RULE] SUBMIT Without WOP ? Expect 400 (Rule Enforced)",
           "event": [
             {
               "listen": "test",
@@ -2608,8 +2608,8 @@
                 "exec": [
                   "// KEY BUSINESS RULE TEST:",
                   "// Quote has IP cover but no WOP. SUBMIT must be rejected with 400.",
-                  "// Backend CoverValidatorEngine checks: hasIP && !hasWOP → throw InvalidRequestException",
-                  "pm.test(\"Status code is 400 — WOP is mandatory when IP cover present\", function () {",
+                  "// Backend CoverValidatorEngine checks: hasIP && !hasWOP ? throw InvalidRequestException",
+                  "pm.test(\"Status code is 400 ? WOP is mandatory when IP cover present\", function () {",
                   "    pm.response.to.have.status(400);",
                   "});",
                   "",
@@ -2622,7 +2622,7 @@
                   "    );",
                   "});",
                   "",
-                  "console.log(\"✅ Business rule enforced: SUBMIT rejected without WOP cover\");"
+                  "console.log(\"? Business rule enforced: SUBMIT rejected without WOP cover\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2652,7 +2652,7 @@
                   "    pm.expect(json.parentCoverId).to.equal(parseInt(pm.environment.get('bizRuleIPCoverId')));",
                   "});",
                   "pm.environment.set(\"bizRuleWOPCoverId\", pm.response.json().coverId);",
-                  "console.log(\"✅ WOP RIDER added — business rule violation fixed\");"
+                  "console.log(\"? WOP RIDER added ? business rule violation fixed\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2671,7 +2671,7 @@
           "response": []
         },
         {
-          "name": "7.6 [BIZ-RULE] SUBMIT With WOP — Expect 200 (Rule Satisfied)",
+          "name": "7.6 [BIZ-RULE] SUBMIT With WOP ? Expect 200 (Rule Satisfied)",
           "event": [
             {
               "listen": "test",
@@ -2679,7 +2679,7 @@
                 "exec": [
                   "// After adding WOP, the IP+WOP rule is satisfied.",
                   "// SUBMIT must now succeed with 200.",
-                  "pm.test(\"Status code is 200 — SUBMIT succeeds with WOP cover present\", function () {",
+                  "pm.test(\"Status code is 200 ? SUBMIT succeeds with WOP cover present\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
@@ -2689,7 +2689,7 @@
                   "    pm.expect(json.quoteId).to.equal(parseInt(pm.environment.get('bizRuleQuoteId')));",
                   "});",
                   "",
-                  "console.log(\"✅ Business rule satisfied: SUBMIT succeeded with IP + WOP covers\");"
+                  "console.log(\"? Business rule satisfied: SUBMIT succeeded with IP + WOP covers\");"
                 ],
                 "type": "text/javascript"
               }
@@ -2700,7 +2700,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {"mode": "raw", "raw": "{\n  \"status\": \"SUBMITTED\"\n}"},
             "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}/status", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}", "status"]},
-            "description": "Re-attempts SUBMIT after adding the WOP RIDER. Now that IP+WOP are both present, the business rule is satisfied and the transition must succeed with 200 → SUBMITTED."
+            "description": "Re-attempts SUBMIT after adding the WOP RIDER. Now that IP+WOP are both present, the business rule is satisfied and the transition must succeed with 200 ? SUBMITTED."
           },
           "response": []
         }
@@ -2875,7 +2875,7 @@
         "packages": {},
         "requests": {},
         "exec": [
-          "// ─── GLOBAL SLA: maxResponseTime check (applies to every request) ───────────",
+          "// ??? GLOBAL SLA: maxResponseTime check (applies to every request) ???????????",
           "// Skips SLA check on intentional negative tests (4xx expected responses).",
           "// For those, performance is less meaningful than correctness.",
           "(function checkSLA() {",
@@ -2886,13 +2886,13 @@
           "                          testName.toLowerCase().includes('expect 5') ||",
           "                          testName.toLowerCase().includes('immutability');",
           "    if (!isNegativeTest) {",
-          "        pm.test(`[SLA] Response under ${maxTime}ms — ${testName}`, function () {",
+          "        pm.test(`[SLA] Response under ${maxTime}ms ? ${testName}`, function () {",
           "            pm.expect(pm.response.responseTime).to.be.below(maxTime);",
           "        });",
           "    }",
           "})();",
           "",
-          "// ─── GLOBAL FAILURE LOGGER (logs full request + response on any 4xx/5xx) ───",
+          "// ??? GLOBAL FAILURE LOGGER (logs full request + response on any 4xx/5xx) ???",
           "if (pm.response.code >= 400) {",
           "    const isExpectedError = pm.info.requestName &&",
           "        (pm.info.requestName.toLowerCase().includes('[negative]') ||",
@@ -2900,22 +2900,22 @@
           "         pm.info.requestName.toLowerCase().includes('immutability'));",
           "",
           "    if (!isExpectedError) {",
-          "        console.error('❌ UNEXPECTED REQUEST FAILED');",
-          "        console.error('➡️ URL:', pm.request.url.toString());",
-          "        console.error('➡️ METHOD:', pm.request.method);",
+          "        console.error('? UNEXPECTED REQUEST FAILED');",
+          "        console.error('?? URL:', pm.request.url.toString());",
+          "        console.error('?? METHOD:', pm.request.method);",
           "        try {",
-          "            console.error('➡️ REQUEST BODY:', JSON.parse(pm.request.body?.raw || '{}'));",
+          "            console.error('?? REQUEST BODY:', JSON.parse(pm.request.body?.raw || '{}'));",
           "        } catch (e) {",
-          "            console.error('➡️ REQUEST BODY (raw):', pm.request.body?.raw);",
+          "            console.error('?? REQUEST BODY (raw):', pm.request.body?.raw);",
           "        }",
-          "        console.error('⬅️ RESPONSE STATUS:', pm.response.code);",
+          "        console.error('?? RESPONSE STATUS:', pm.response.code);",
           "        try {",
-          "            console.error('⬅️ RESPONSE BODY:', pm.response.json());",
+          "            console.error('?? RESPONSE BODY:', pm.response.json());",
           "        } catch (e) {",
-          "            console.error('⬅️ RESPONSE BODY (text):', pm.response.text());",
+          "            console.error('?? RESPONSE BODY (text):', pm.response.text());",
           "        }",
           "    } else {",
-          "        console.log('ℹ️ Expected error response for:', pm.info.requestName, '→ HTTP', pm.response.code);",
+          "        console.log('?? Expected error response for:', pm.info.requestName, '? HTTP', pm.response.code);",
           "    }",
           "}"
         ]
@@ -2926,32 +2926,32 @@
       "item": [
         {
           "name": "8.1 [SECURITY] SQL Injection in Agent Name (No 500)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"SQL injection does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ SQL injection handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"SQL injection does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"? SQL injection handled safely ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"'; DROP TABLE agents; --\",\n  \"email\": \"sqli@test.com\",\n  \"phoneNumber\": \"+91-9000000001\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: SQL injection in name field. Must not return 500 or execute the payload."},
           "response": []
         },
         {
           "name": "8.2 [SECURITY] XSS Script Tag in Client Name (No 500)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"XSS payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"✅ XSS handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
-          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"<script>alert('xss')</script>\",\n  \"lastName\": \"TestUser\",\n  \"email\": \"xss@test.com\",\n  \"phoneNumber\": \"+91-9000000002\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1990-01-01\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Security test: XSS script tag in firstName. Must reject or store as literal text — never execute."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"XSS payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400 (rejected) or 201 (safely stored)\", function () { pm.expect([400, 201, 422]).to.include(pm.response.code); });", "console.log(\"? XSS handled safely ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"<script>alert('xss')</script>\",\n  \"lastName\": \"TestUser\",\n  \"email\": \"xss@test.com\",\n  \"phoneNumber\": \"+91-9000000002\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1990-01-01\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Security test: XSS script tag in firstName. Must reject or store as literal text ? never execute."},
           "response": []
         },
         {
           "name": "8.3 [SECURITY] Oversized Payload (No 500)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Oversized payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Oversized payload rejected with 400 or 413\", function () { pm.expect([400, 413, 422]).to.include(pm.response.code); });", "console.log(\"✅ Oversized payload handled safely — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Oversized payload does not cause 500 Server Error\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Oversized payload rejected with 400 or 413\", function () { pm.expect([400, 413, 422]).to.include(pm.response.code); });", "console.log(\"? Oversized payload handled safely ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"email\": \"big@test.com\",\n  \"phoneNumber\": \"+91-9000000003\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: 1000+ char string in name. Must return 400 or 413, never 500."},
           "response": []
         },
         {
-          "name": "8.4 [SECURITY] Wrong Content-Type text/plain → 400 or 415",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Wrong Content-Type rejected without 500\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400, 415, or 422\", function () { pm.expect([400, 415, 422]).to.include(pm.response.code); });", "console.log(\"✅ Wrong Content-Type handled — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "name": "8.4 [SECURITY] Wrong Content-Type text/plain ? 400 or 415",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Wrong Content-Type rejected without 500\", function () { pm.expect(pm.response.code).to.not.equal(500); });", "pm.test(\"Response is 400, 415, or 422\", function () { pm.expect([400, 415, 422]).to.include(pm.response.code); });", "console.log(\"? Wrong Content-Type handled ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "text/plain"}], "body": {"mode": "raw", "raw": "{\"name\": \"Test Agent\", \"email\": \"ct@test.com\", \"role\": \"AGENT\"}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Security test: sends POST with Content-Type: text/plain. Must reject with 415 or 400."},
           "response": []
         },
         {
           "name": "8.5 [SECURITY] Non-Existent Resource 404 (No Stack Trace Leak)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Non-existent resource returns 404\", function () { pm.response.to.have.status(404); });", "pm.test(\"Error response does not leak stack trace or DB internals\", function () { const text = pm.response.text().toLowerCase(); pm.expect(text).to.not.include('exception'); pm.expect(text).to.not.include('at com.'); pm.expect(text).to.not.include('hibernate'); pm.expect(text).to.not.include('sql'); });", "console.log(\"✅ 404 returned without stack trace leak\");"], "type": "text/javascript"}}],
-          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/quotes/999999999", "host": ["{{baseUrl}}"], "path": ["quotes", "999999999"]}, "description": "Security test: implausibly large ID. Must return 404 — not 500 — with no stack trace in response body."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Non-existent resource returns 404\", function () { pm.response.to.have.status(404); });", "pm.test(\"Error response does not leak stack trace or DB internals\", function () { const text = pm.response.text().toLowerCase(); pm.expect(text).to.not.include('exception'); pm.expect(text).to.not.include('at com.'); pm.expect(text).to.not.include('hibernate'); pm.expect(text).to.not.include('sql'); });", "console.log(\"? 404 returned without stack trace leak\");"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/quotes/999999999", "host": ["{{baseUrl}}"], "path": ["quotes", "999999999"]}, "description": "Security test: implausibly large ID. Must return 404 ? not 500 ? with no stack trace in response body."},
           "response": []
         }
       ]
@@ -2961,73 +2961,73 @@
       "item": [
         {
           "name": "9.1 [CRUD] Create CRUD Test Agent",
-          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudAgentEmail', 'crud_agent_' + ts + '@test.com'); pm.variables.set('crudAgentPhone', '+91' + (9000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Agent created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.be.a('number'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json.name).to.equal('CRUD Test Agent'); });", "pm.environment.set('crudAgentId', pm.response.json().agentId); console.log('💾 crudAgentId:', pm.response.json().agentId);"], "type": "text/javascript"}}],
+          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudAgentEmail', 'crud_agent_' + ts + '@test.com'); pm.variables.set('crudAgentPhone', '+91' + (9000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Agent created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.be.a('number'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json.name).to.equal('CRUD Test Agent'); });", "pm.environment.set('crudAgentId', pm.response.json().agentId); console.log('?? crudAgentId:', pm.response.json().agentId);"], "type": "text/javascript"}}],
           "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"CRUD Test Agent\",\n  \"email\": \"{{crudAgentEmail}}\",\n  \"phoneNumber\": \"{{crudAgentPhone}}\",\n  \"role\": \"AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Creates a dedicated agent for CRUD testing. Uses a unique email to avoid conflicts."},
           "response": []
         },
         {
           "name": "9.2 [CRUD] GET All Agents (List Contains CRUD Agent)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test agent\", function () { const list = pm.response.json(); const found = list.some(a => a.agentId === parseInt(pm.environment.get('crudAgentId'))); pm.expect(found).to.be.true; });", "console.log('✅ Agent list verified, total agents:', pm.response.json().length);"], "type": "text/javascript"}}],
-          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "GET /agents — retrieves the full agent list and verifies the newly created CRUD test agent appears in it."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test agent\", function () { const list = pm.response.json(); const found = list.some(a => a.agentId === parseInt(pm.environment.get('crudAgentId'))); pm.expect(found).to.be.true; });", "console.log('? Agent list verified, total agents:', pm.response.json().length);"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "GET /agents ? retrieves the full agent list and verifies the newly created CRUD test agent appears in it."},
           "response": []
         },
         {
           "name": "9.3 [CRUD] GET Agent by ID",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET agent returns correct agent\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('phoneNumber'); pm.expect(json).to.have.property('role'); });", "console.log('✅ Agent GET by ID verified');"], "type": "text/javascript"}}],
-          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "GET /agents/{id} — retrieves a specific agent by ID and verifies all fields are correctly returned."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET agent returns correct agent\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent'); pm.expect(json.status).to.equal('ACTIVE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('phoneNumber'); pm.expect(json).to.have.property('role'); });", "console.log('? Agent GET by ID verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "GET /agents/{id} ? retrieves a specific agent by ID and verifies all fields are correctly returned."},
           "response": []
         },
         {
           "name": "9.4 [CRUD] PUT Update Agent",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Agent name updated correctly\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent (Updated)'); pm.expect(json.role).to.equal('SENIOR_AGENT'); });", "console.log('✅ Agent update verified');"], "type": "text/javascript"}}],
-          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"CRUD Test Agent (Updated)\",\n  \"role\": \"SENIOR_AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "PUT /agents/{id} — updates the agent name and role, verifies the response reflects the changes."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Agent name updated correctly\", function () { const json = pm.response.json(); pm.expect(json.agentId).to.equal(parseInt(pm.environment.get('crudAgentId'))); pm.expect(json.name).to.equal('CRUD Test Agent (Updated)'); pm.expect(json.role).to.equal('SENIOR_AGENT'); });", "console.log('? Agent update verified');"], "type": "text/javascript"}}],
+          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"CRUD Test Agent (Updated)\",\n  \"role\": \"SENIOR_AGENT\"\n}"}, "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "PUT /agents/{id} ? updates the agent name and role, verifies the response reflects the changes."},
           "response": []
         },
         {
           "name": "9.5 [CRUD] DELETE Agent",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 — agent deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('✅ Agent deleted — HTTP', pm.response.code);"], "type": "text/javascript"}}],
-          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "DELETE /agents/{id} — deletes the CRUD test agent. Expects 200 or 204."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 ? agent deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('? Agent deleted ? HTTP', pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "DELETE /agents/{id} ? deletes the CRUD test agent. Expects 200 or 204."},
           "response": []
         },
         {
-          "name": "9.6 [CRUD] GET Deleted Agent → 404",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudAgentId');", "console.log('✅ Agent confirmed deleted — 404 verified');"], "type": "text/javascript"}}],
+          "name": "9.6 [CRUD] GET Deleted Agent ? 404",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudAgentId');", "console.log('? Agent confirmed deleted ? 404 verified');"], "type": "text/javascript"}}],
           "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents/{{crudAgentId}}", "host": ["{{baseUrl}}"], "path": ["agents", "{{crudAgentId}}"]}, "description": "Verifies the deleted agent returns 404. This confirms the DELETE was permanent, not a soft-delete that still returns the resource."},
           "response": []
         },
         {
           "name": "9.7 [CRUD] Create CRUD Test Client",
-          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudClientEmail', 'crud_client_' + ts + '@test.com'); pm.variables.set('crudClientPhone', '+91' + (8000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Client created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.be.a('number'); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); });", "pm.environment.set('crudClientId', pm.response.json().clientId); console.log('💾 crudClientId:', pm.response.json().clientId);"], "type": "text/javascript"}}],
+          "event": [{"listen": "prerequest", "script": {"exec": ["const ts = Date.now(); pm.variables.set('crudClientEmail', 'crud_client_' + ts + '@test.com'); pm.variables.set('crudClientPhone', '+91' + (8000000010 + Math.floor(Math.random() * 100)));"], "type": "text/javascript"}}, {"listen": "test", "script": {"exec": ["pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });", "pm.test(\"Client created with correct fields\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.be.a('number'); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); });", "pm.environment.set('crudClientId', pm.response.json().clientId); console.log('?? crudClientId:', pm.response.json().clientId);"], "type": "text/javascript"}}],
           "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"CrudFirst\",\n  \"lastName\": \"CrudLast\",\n  \"email\": \"{{crudClientEmail}}\",\n  \"phoneNumber\": \"{{crudClientPhone}}\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1992-06-15\"\n}"}, "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "Creates a dedicated client for CRUD testing with unique email to avoid conflicts."},
           "response": []
         },
         {
           "name": "9.8 [CRUD] GET All Clients (List Contains CRUD Client)",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test client\", function () { const list = pm.response.json(); const found = list.some(c => c.clientId === parseInt(pm.environment.get('crudClientId'))); pm.expect(found).to.be.true; });", "console.log('✅ Client list verified, total clients:', pm.response.json().length);"], "type": "text/javascript"}}],
-          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "GET /clients — retrieves the full client list and verifies the newly created CRUD test client appears in it."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Response is an array\", function () { pm.expect(pm.response.json()).to.be.an('array'); });", "pm.test(\"List contains the CRUD test client\", function () { const list = pm.response.json(); const found = list.some(c => c.clientId === parseInt(pm.environment.get('crudClientId'))); pm.expect(found).to.be.true; });", "console.log('? Client list verified, total clients:', pm.response.json().length);"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"]}, "description": "GET /clients ? retrieves the full client list and verifies the newly created CRUD test client appears in it."},
           "response": []
         },
         {
           "name": "9.9 [CRUD] GET Client by ID",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET client returns correct client\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('dateOfBirth'); });", "console.log('✅ Client GET by ID verified');"], "type": "text/javascript"}}],
-          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "GET /clients/{id} — retrieves a specific client by ID and verifies all fields."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"GET client returns correct client\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudFirst'); pm.expect(json.lastName).to.equal('CrudLast'); pm.expect(json.gender).to.equal('MALE'); pm.expect(json).to.have.property('email'); pm.expect(json).to.have.property('dateOfBirth'); });", "console.log('? Client GET by ID verified');"], "type": "text/javascript"}}],
+          "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "GET /clients/{id} ? retrieves a specific client by ID and verifies all fields."},
           "response": []
         },
         {
           "name": "9.10 [CRUD] PUT Update Client",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Client updated correctly\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudUpdated'); pm.expect(json.lastName).to.equal('CrudLast'); });", "console.log('✅ Client update verified');"], "type": "text/javascript"}}],
-          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"CrudUpdated\",\n  \"lastName\": \"CrudLast\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1992-06-15\"\n}"}, "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "PUT /clients/{id} — updates the client's firstName, verifies the response reflects the change."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "pm.test(\"Client updated correctly\", function () { const json = pm.response.json(); pm.expect(json.clientId).to.equal(parseInt(pm.environment.get('crudClientId'))); pm.expect(json.firstName).to.equal('CrudUpdated'); pm.expect(json.lastName).to.equal('CrudLast'); });", "console.log('? Client update verified');"], "type": "text/javascript"}}],
+          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"firstName\": \"CrudUpdated\",\n  \"lastName\": \"CrudLast\",\n  \"gender\": \"MALE\",\n  \"dateOfBirth\": \"1992-06-15\"\n}"}, "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "PUT /clients/{id} ? updates the client's firstName, verifies the response reflects the change."},
           "response": []
         },
         {
           "name": "9.11 [CRUD] DELETE Client",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 — client deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('✅ Client deleted — HTTP', pm.response.code);"], "type": "text/javascript"}}],
-          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "DELETE /clients/{id} — deletes the CRUD test client. Expects 200 or 204."},
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 200 or 204 ? client deleted\", function () { pm.expect([200, 204]).to.include(pm.response.code); });", "console.log('? Client deleted ? HTTP', pm.response.code);"], "type": "text/javascript"}}],
+          "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "DELETE /clients/{id} ? deletes the CRUD test client. Expects 200 or 204."},
           "response": []
         },
         {
-          "name": "9.12 [CRUD] GET Deleted Client → 404",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudClientId');", "console.log('✅ Client confirmed deleted — 404 verified');"], "type": "text/javascript"}}],
+          "name": "9.12 [CRUD] GET Deleted Client ? 404",
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 after deletion\", function () { pm.response.to.have.status(404); });", "pm.environment.unset('crudClientId');", "console.log('? Client confirmed deleted ? 404 verified');"], "type": "text/javascript"}}],
           "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/clients/{{crudClientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{crudClientId}}"]}, "description": "Verifies the deleted client returns 404. Confirms DELETE was permanent."},
           "response": []
         }
@@ -3038,31 +3038,31 @@
       "item": [
         {
           "name": "99.1 [TEARDOWN] DELETE Main Quote",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Main quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "pm.environment.unset('quoteId'); pm.environment.unset('insuredId'); pm.environment.unset('coverId');", "console.log(\"🗑️ Main quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Main quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "pm.environment.unset('quoteId'); pm.environment.unset('insuredId'); pm.environment.unset('coverId');", "console.log(\"??? Main quote cleanup ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{quoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{quoteId}}"]}, "description": "Deletes the main ISSUED lifecycle quote. Accepts 200/204/404/405."},
           "response": []
         },
         {
           "name": "99.2 [TEARDOWN] DELETE RIDER Test Quote",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"RIDER quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ RIDER quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"RIDER quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"??? RIDER quote cleanup ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{riderQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{riderQuoteId}}"]}, "description": "Deletes RIDER test quote and clears riderQuoteId, riderInsuredId, riderBaseCoverId, riderCoverId."},
           "response": []
         },
         {
           "name": "99.3 [TEARDOWN] DELETE Multi-Insured Test Quote",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Multi-insured quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Multi-insured quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Multi-insured quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId'].forEach(v => pm.environment.unset(v));", "console.log(\"??? Multi-insured quote cleanup ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{multiQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{multiQuoteId}}"]}, "description": "Deletes multi-insured test quote and clears all multi-insured env vars."},
           "response": []
         },
         {
           "name": "99.4 [TEARDOWN] DELETE Business Rules Test Quote",
-          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Business rules quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"🗑️ Business rules quote cleanup — HTTP\", pm.response.code);"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["pm.test(\"Business rules quote deleted or confirmed non-existent\", function () { pm.expect([200, 204, 404, 405]).to.include(pm.response.code); });", "['bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'].forEach(v => pm.environment.unset(v));", "console.log(\"??? Business rules quote cleanup ? HTTP\", pm.response.code);"], "type": "text/javascript"}}],
           "request": {"method": "DELETE", "header": [], "url": {"raw": "{{baseUrl}}/quotes/{{bizRuleQuoteId}}", "host": ["{{baseUrl}}"], "path": ["quotes", "{{bizRuleQuoteId}}"]}, "description": "Deletes WOP+IP business rule test quote and clears all biz rule env vars."},
           "response": []
         },
         {
           "name": "99.5 [TEARDOWN] Clear All Dynamic Env Variables",
-          "event": [{"listen": "test", "script": {"exec": ["const dynamicVars = ['agentId','clientId','quoteId','insuredId','coverId','agentEmail','clientEmail','phoneNumber','riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId','multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId','bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'];", "dynamicVars.forEach(v => pm.environment.unset(v));", "pm.test(\"All 20 dynamic env vars cleared\", function () { dynamicVars.forEach(v => { pm.expect(pm.environment.get(v)).to.be.oneOf([null, undefined, '']); }); });", "console.log('✅ TEARDOWN COMPLETE — environment cleaned');", "console.log('   baseUrl:', pm.environment.get('baseUrl'));"], "type": "text/javascript"}}],
+          "event": [{"listen": "test", "script": {"exec": ["const dynamicVars = ['agentId','clientId','quoteId','insuredId','coverId','agentEmail','clientEmail','phoneNumber','riderQuoteId','riderInsuredId','riderBaseCoverId','riderCoverId','multiQuoteId','multiPrimaryInsuredId','multiChildInsuredId','multiSecondaryInsuredId','bizRuleQuoteId','bizRuleInsuredId','bizRuleIPCoverId','bizRuleWOPCoverId'];", "dynamicVars.forEach(v => pm.environment.unset(v));", "pm.test(\"All 20 dynamic env vars cleared\", function () { dynamicVars.forEach(v => { pm.expect(pm.environment.get(v)).to.be.oneOf([null, undefined, '']); }); });", "console.log('? TEARDOWN COMPLETE ? environment cleaned');", "console.log('   baseUrl:', pm.environment.get('baseUrl'));"], "type": "text/javascript"}}],
           "request": {"method": "GET", "header": [], "url": {"raw": "{{baseUrl}}/agents", "host": ["{{baseUrl}}"], "path": ["agents"]}, "description": "Final teardown: clears all 20 dynamic env vars (IDs, emails, phones) created during the test run. Preserves baseUrl and maxResponseTime."},
           "response": []
         }
