@@ -222,13 +222,21 @@
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "eval(pm.globals.get(\"commonUtils\"));\r",
-                  "\r",
-                  "const clientEmail = generateUnique(\"client\", \"usedClientEmails\");\r",
-                  "pm.environment.set(\"clientEmail\", `${clientEmail}@test.com`);\r",
-                  "\r",
-                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\r",
-                  "pm.environment.set(\"phoneNumber\", phone);"
+                  "eval(pm.globals.get(\"commonUtils\"));\\r",
+                  "const clientEmail = generateUnique(\"client\", \"usedClientEmails\");\\r",
+                  "pm.environment.set(\"clientEmail\", clientEmail + \"@test.com\");\\r",
+                  "const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\\r",
+                  "pm.environment.set(\"phoneNumber\", phone);\\r",
+                  "// CSV fallbacks: set safe defaults when Postman GUI runs without --iteration-data\\r",
+                  "const sb=(k,d)=>{const v=pm.variables.get(k);if(!v||String(v).includes(\"{\"))pm.variables.set(k,d);};\\r",
+                  "sb(\"firstName\",\"Vivek\");\\r",
+                  "sb(\"lastName\",\"Kumar\");\\r",
+                  "sb(\"dateOfBirth\",\"1985-06-15\");\\r",
+                  "sb(\"addressLine1\",\"123 Main Street\");\\r",
+                  "sb(\"addressCity\",\"Mumbai\");\\r",
+                  "sb(\"addressState\",\"MH\");\\r",
+                  "sb(\"addressCountry\",\"India\");\\r",
+                  "sb(\"postalCode\",\"400001\");"
                 ],
                 "type": "text/javascript",
                 "packages": {},
