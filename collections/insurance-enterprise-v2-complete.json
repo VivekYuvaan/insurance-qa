@@ -2849,78 +2849,7 @@
         }
       ]
     }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
-        "exec": [
-          "pm.globals.set(\"commonUtils\", `\r",
-          "function generateUnique(prefix) {\r",
-          "    const timestamp = Date.now();\r",
-          "    const random = Math.floor(Math.random() * 1000);\r",
-          "    return \\`\\${prefix}_\\${timestamp}_\\${random}\\`;\r",
-          "}\r",
-          "`);"
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
-        "exec": [
-          "// ????????? GLOBAL SLA: maxResponseTime check (applies to every request) ?????????????????????????????????",
-          "// Skips SLA check on intentional negative tests (4xx expected responses).",
-          "// For those, performance is less meaningful than correctness.",
-          "(function checkSLA() {",
-          "    const maxTime = parseInt(pm.environment.get('maxResponseTime') || '10000');",
-          "    const testName = pm.info.requestName || 'Unknown Request';",
-          "    const isNegativeTest = testName.toLowerCase().includes('[negative]') ||",
-          "                          testName.toLowerCase().includes('expect 4') ||",
-          "                          testName.toLowerCase().includes('expect 5') ||",
-          "                          testName.toLowerCase().includes('immutability');",
-          "    if (!isNegativeTest) {",
-          "        pm.test(`[SLA] Response under ${maxTime}ms ??? ${testName}`, function () {",
-          "            pm.expect(pm.response.responseTime).to.be.below(maxTime);",
-          "        });",
-          "    }",
-          "})();",
-          "",
-          "// ????????? GLOBAL FAILURE LOGGER (logs full request + response on any 4xx/5xx) ?????????",
-          "if (pm.response.code >= 400) {",
-          "    const isExpectedError = pm.info.requestName &&",
-          "        (pm.info.requestName.toLowerCase().includes('[negative]') ||",
-          "         pm.info.requestName.toLowerCase().includes('expect 4') ||",
-          "         pm.info.requestName.toLowerCase().includes('immutability'));",
-          "",
-          "    if (!isExpectedError) {",
-          "        console.error('??? UNEXPECTED REQUEST FAILED');",
-          "        console.error('?????? URL:', pm.request.url.toString());",
-          "        console.error('?????? METHOD:', pm.request.method);",
-          "        try {",
-          "            console.error('?????? REQUEST BODY:', JSON.parse(pm.request.body?.raw || '{}'));",
-          "        } catch (e) {",
-          "            console.error('?????? REQUEST BODY (raw):', pm.request.body?.raw);",
-          "        }",
-          "        console.error('?????? RESPONSE STATUS:', pm.response.code);",
-          "        try {",
-          "            console.error('?????? RESPONSE BODY:', pm.response.json());",
-          "        } catch (e) {",
-          "            console.error('?????? RESPONSE BODY (text):', pm.response.text());",
-          "        }",
-          "    } else {",
-          "        console.log('?????? Expected error response for:', pm.info.requestName, '??? HTTP', pm.response.code);",
-          "    }",
-          "}"
-        ]
-      }
-    },
+  ,
     {
       "name": "08 - Security Tests",
       "item": [
@@ -3111,6 +3040,78 @@
           "response": []
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "pm.globals.set(\"commonUtils\", `\r",
+          "function generateUnique(prefix) {\r",
+          "    const timestamp = Date.now();\r",
+          "    const random = Math.floor(Math.random() * 1000);\r",
+          "    return \\`\\${prefix}_\\${timestamp}_\\${random}\\`;\r",
+          "}\r",
+          "`);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// ????????? GLOBAL SLA: maxResponseTime check (applies to every request) ?????????????????????????????????",
+          "// Skips SLA check on intentional negative tests (4xx expected responses).",
+          "// For those, performance is less meaningful than correctness.",
+          "(function checkSLA() {",
+          "    const maxTime = parseInt(pm.environment.get('maxResponseTime') || '10000');",
+          "    const testName = pm.info.requestName || 'Unknown Request';",
+          "    const isNegativeTest = testName.toLowerCase().includes('[negative]') ||",
+          "                          testName.toLowerCase().includes('expect 4') ||",
+          "                          testName.toLowerCase().includes('expect 5') ||",
+          "                          testName.toLowerCase().includes('immutability');",
+          "    if (!isNegativeTest) {",
+          "        pm.test(`[SLA] Response under ${maxTime}ms ??? ${testName}`, function () {",
+          "            pm.expect(pm.response.responseTime).to.be.below(maxTime);",
+          "        });",
+          "    }",
+          "})();",
+          "",
+          "// ????????? GLOBAL FAILURE LOGGER (logs full request + response on any 4xx/5xx) ?????????",
+          "if (pm.response.code >= 400) {",
+          "    const isExpectedError = pm.info.requestName &&",
+          "        (pm.info.requestName.toLowerCase().includes('[negative]') ||",
+          "         pm.info.requestName.toLowerCase().includes('expect 4') ||",
+          "         pm.info.requestName.toLowerCase().includes('immutability'));",
+          "",
+          "    if (!isExpectedError) {",
+          "        console.error('??? UNEXPECTED REQUEST FAILED');",
+          "        console.error('?????? URL:', pm.request.url.toString());",
+          "        console.error('?????? METHOD:', pm.request.method);",
+          "        try {",
+          "            console.error('?????? REQUEST BODY:', JSON.parse(pm.request.body?.raw || '{}'));",
+          "        } catch (e) {",
+          "            console.error('?????? REQUEST BODY (raw):', pm.request.body?.raw);",
+          "        }",
+          "        console.error('?????? RESPONSE STATUS:', pm.response.code);",
+          "        try {",
+          "            console.error('?????? RESPONSE BODY:', pm.response.json());",
+          "        } catch (e) {",
+          "            console.error('?????? RESPONSE BODY (text):', pm.response.text());",
+          "        }",
+          "    } else {",
+          "        console.log('?????? Expected error response for:', pm.info.requestName, '??? HTTP', pm.response.code);",
+          "    }",
+          "}"
+        ]
+      }
     }
   ]
 }
