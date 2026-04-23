@@ -1427,7 +1427,7 @@
                   "});",
                   "",
                   "let json = pm.response.json();",
-                  "pm.environment.set(\"agentId\", json.agentId);"
+                  "pm.environment.set(\"contractAgentId\", json.agentId);"
                 ],
                 "type": "text/javascript",
                 "packages": {},
@@ -1501,7 +1501,7 @@
                   "});",
                   "",
                   "let json = pm.response.json();",
-                  "pm.environment.set(\"agentId\", json.agentId);"
+                  "pm.environment.set(\"contractAgentId\", json.agentId);"
                 ],
                 "type": "text/javascript",
                 "packages": {},
