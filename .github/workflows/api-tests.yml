@@ -32,7 +32,8 @@ jobs:
             -e collections/insurance-env.json \
             --folder "00 - Setup" \
             --folder "01 - Quote Lifecycle" \
-            --folder "02 - Negative Tests" \
+            --folder "02 - GET Verification" \
+            --folder "03 - Negative Tests" \
             --folder "03 - Contract Tests" \
             --folder "04 - Cover Scenarios" \
             --folder "05 - Multi-Insured Scenarios" \
@@ -140,7 +141,8 @@ jobs:
             -e collections/insurance-env.json \
             --folder "00 - Setup" \
             --folder "01 - Quote Lifecycle" \
-            --folder "02 - Negative Tests" \
+            --folder "02 - GET Verification" \
+            --folder "03 - Negative Tests" \
             --folder "03 - Contract Tests" \
             --folder "04 - Cover Scenarios" \
             --folder "05 - Multi-Insured Scenarios" \

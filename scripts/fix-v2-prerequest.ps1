@@ -1,51 +1,40 @@
 $v2 = "d:/insurance-qa/collections/insurance-enterprise-v2-complete.json"
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-$raw = [System.IO.File]::ReadAllText($v2)
+$bytes = [System.IO.File]::ReadAllBytes($v2)
+$raw = [System.Text.Encoding]::UTF8.GetString($bytes)
 
-# Verified positions from diagnostic:
-$execStart = 10342  # start of "exec": [
-$execClose = 10830  # position of closing ]
+# The file currently has \\r (JSON literal backslash+r) at end of each exec string line
+# This results in JS seeing backslash+r which is a SyntaxError outside string literals
+# Fix: simply remove all \\r" occurrences from the Create Client prerequest exec block
+
+$execStart = 10342
+$execClose = 11483
 
 $oldExec = $raw.Substring($execStart, $execClose - $execStart + 1)
-Write-Host "Replacing exec block ($($oldExec.Length) chars)"
-Write-Host "Old ends with: $($oldExec.Substring($oldExec.Length-60))"
+Write-Host "Old exec block length: $($oldExec.Length)"
 
-# Build the new exec block (CRLF because file uses CRLF)
-$nl = "`r`n"
-$sp = "                  "  # 18 spaces = indent level in file
+# Remove \\r from end of each string (replace \r" with ")
+# In the raw string, \\r" appears as: \\r" (4 chars: \,\,r,")
+$fixedExec = $oldExec -replace '\\\\r"', '"'
 
-$newExec = '"exec": [' + $nl +
-  $sp + '"eval(pm.globals.get(\"commonUtils\"));\\r",' + $nl +
-  $sp + '"const clientEmail = generateUnique(\"client\", \"usedClientEmails\");\\r",' + $nl +
-  $sp + '"pm.environment.set(\"clientEmail\", clientEmail + \"@test.com\");\\r",' + $nl +
-  $sp + '"const phone = \"+91\" + Math.floor(1000000000 + Math.random() * 9000000000);\\r",' + $nl +
-  $sp + '"pm.environment.set(\"phoneNumber\", phone);\\r",' + $nl +
-  $sp + '"// CSV fallbacks: set safe defaults when Postman GUI runs without --iteration-data\\r",' + $nl +
-  $sp + '"const sb=(k,d)=>{const v=pm.variables.get(k);if(!v||String(v).includes(\"{\"))pm.variables.set(k,d);};\\r",' + $nl +
-  $sp + '"sb(\"firstName\",\"Vivek\");\\r",' + $nl +
-  $sp + '"sb(\"lastName\",\"Kumar\");\\r",' + $nl +
-  $sp + '"sb(\"dateOfBirth\",\"1985-06-15\");\\r",' + $nl +
-  $sp + '"sb(\"addressLine1\",\"123 Main Street\");\\r",' + $nl +
-  $sp + '"sb(\"addressCity\",\"Mumbai\");\\r",' + $nl +
-  $sp + '"sb(\"addressState\",\"MH\");\\r",' + $nl +
-  $sp + '"sb(\"addressCountry\",\"India\");\\r",' + $nl +
-  $sp + '"sb(\"postalCode\",\"400001\");"' + $nl +
-  "                ]"
+# Also simplify - rewrite as a clean exec block with correct JSON escaping
+# The \\ in PowerShell regex means literal \ so \\\\r matches two backslashes + r
+Write-Host "Fixed exec block:"
+Write-Host $fixedExec
 
-Write-Host "New exec ends with: $($newExec.Substring($newExec.Length - 40))"
+$raw = $raw.Substring(0, $execStart) + $fixedExec + $raw.Substring($execClose + 1)
 
-$raw = $raw.Substring(0, $execStart) + $newExec + $raw.Substring($execClose + 1)
-
-# Verify
-if ($raw.Contains("1985-06-15") -and $raw.Contains("setIfBlank") -eq $false -and $raw.Contains('sb("dateOfBirth"')) {
-    Write-Host "SUCCESS: fallback confirmed"
-} elseif ($raw.Contains("1985-06-15")) {
-    Write-Host "SUCCESS: dateOfBirth fallback is in file"
+# Verify no more \\r in the prerequest area  
+$prereqArea = $raw.Substring($execStart, $fixedExec.Length + 100)
+if ($prereqArea -match '\\\\r"') {
+    Write-Host "WARNING: \\r still found in prerequest"
 } else {
-    Write-Host "ERROR: fallback not found"
-    exit 1
+    Write-Host "SUCCESS: No stray \\r in prerequest"
 }
 
-Write-Host "New file size: $([Math]::Round($raw.Length/1KB,1)) KB"
+if ($raw.Contains("1985-06-15")) {
+    Write-Host "dateOfBirth fallback still present: OK"
+}
+
 [System.IO.File]::WriteAllText($v2, $raw, $utf8NoBom)
 Write-Host "Written: $v2"

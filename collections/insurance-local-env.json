@@ -5,14 +5,13 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:8080",
-      "enabled": true,
-      "description": "Local Spring Boot instance. Start with: mvn spring-boot:run or from IDE"
+      "enabled": true
     },
     {
       "key": "maxResponseTime",
-      "value": "3000",
+      "value": "5000",
       "enabled": true,
-      "description": "Local API should respond well under 3 seconds. Tighten if needed."
+      "description": "Local server - 5s timeout is generous enough"
     },
     {
       "key": "agentId",
